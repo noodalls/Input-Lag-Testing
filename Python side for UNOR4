@@ -1,0 +1,610 @@
+#
+import serial
+import numpy as np
+import cv2
+import time
+
+current_value = 0
+current_x = 0
+mode = 1
+screen_x_position = 0
+screen_y_position = 0
+k=0
+jump=1
+port_list = ['COM1','COM2','COM3','COM4','COM5','COM6','COM7','COM8','COM9']
+port_list_cursor = 8
+port_connected = 0
+
+try:
+    arduino = serial.Serial(port=port_list[port_list_cursor],   baudrate=115200, timeout=.1)
+    port_connected = 1
+    mode = 4
+except:
+    mode = 3
+
+PT1=np.zeros((1000000), np.int16)
+PT2=np.zeros((1000000), np.int16)
+loop_number=0
+LOOP_MAX=999
+
+margin=1
+MARGIN=4
+
+greater_than=1
+less_than = 1
+both_OPT=0
+read_time=500
+RETURN_TIME=1000
+expect_time = 600
+END_TIME = 1200
+
+OPT1_max=0
+OPT1_min = 128
+OPT2_max=0
+OPT2_min = 128
+OPT1_time = 0
+OPT2_time = 0
+OPT1_found = 0
+OPT2_found = 0
+
+
+def show_screen(_screen_title,_screen,_click_event,):
+    global k
+
+    cv2.namedWindow(_screen_title, cv2.WINDOW_NORMAL)
+    cv2.setWindowProperty(_screen_title, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    cv2.setWindowProperty(_screen_title, cv2.WND_PROP_TOPMOST, 1)
+    cv2.moveWindow(_screen_title,screen_x_position,screen_y_position)# use this line for 3 monitor setup
+    cv2.imshow(_screen_title, _screen)
+    cv2.setMouseCallback(_screen_title, _click_event)
+    k = cv2.waitKey(33)
+
+
+def click_event_mode4(event, x, y, flags, param):
+    global read_time
+    global RETURN_TIME
+    global loop_number
+    global LOOP_MAX
+    global expect_time
+    global END_TIME
+    global current_x
+
+    current_x = x
+    if event == cv2.EVENT_LBUTTONDOWN and (current_x < RETURN_TIME) and y<128:
+        arduino.write(bytes('r'+str(current_x), 'utf-8'))
+        time.sleep(0.25)
+        calculate_averages()
+
+
+    if event == cv2.EVENT_RBUTTONDOWN and (current_x > read_time) and y < 128:
+        arduino.write(bytes('R'+str(current_x), 'utf-8'))
+        time.sleep(0.10)
+        calculate_averages()
+
+    if event == cv2.EVENT_MBUTTONDOWN and (current_x > read_time) and y < 128:
+        expect_time = x
+        calculate_averages()
+
+    if event == 10 and flags < 0 and x<250:  # mouse wheel
+        arduino.write(bytes('l'+str(max(loop_number-1,0)), 'utf-8'))
+        time.sleep(0.10)
+
+    if event == 10 and flags > 0 and x<250:  # mouse wheel
+        arduino.write(bytes('l'+str(min(LOOP_MAX,loop_number+1)), 'utf-8'))
+        time.sleep(0.01)
+
+    if event == 10 and flags < 0 and x>250 and x<500:  # mouse wheel
+        arduino.write(bytes('L'+str(max(LOOP_MAX-1,0)), 'utf-8'))
+        time.sleep(0.25)
+
+    if event == 10 and flags > 0 and x>250 and x<500:  # mouse wheel
+        arduino.write(bytes('L'+str(LOOP_MAX+1), 'utf-8'))
+        time.sleep(0.10)
+
+
+def generic_keys():
+    global k
+    global current_value
+    global screen_x_position
+    global screen_y_position
+    global mode
+
+    if (k != -1):
+        print(k)
+    if k == 27:#esc key
+        mode = 10
+    if k == 65:#A key
+        ()
+    if k == 97:#a key
+        ()
+
+    if k == 112:#p key
+        arduino.write(bytes('p', 'utf-8'))
+        time.sleep(0.10)
+    if k == 80:#P key
+        arduino.write(bytes('P', 'utf-8'))
+        time.sleep(0.10)
+
+    if k == 109:#m key
+        arduino.write(bytes('m'+str(current_value), 'utf-8'))
+        time.sleep(0.10)
+        current_value = 0
+    if k == 77:#M key
+        arduino.write(bytes('M' + str(current_value), 'utf-8'))
+        time.sleep(0.10)
+        current_value = 0
+
+    if k == 108:#l key
+        if current_value < LOOP_MAX:
+            arduino.write(bytes('l' + str(current_value), 'utf-8'))
+            time.sleep(0.10)
+        current_value = 0
+    if k == 76:#L key
+        arduino.write(bytes('L' + str(current_value), 'utf-8'))
+        time.sleep(0.10)
+        current_value = 0
+
+    if k == 114:#r key
+        if current_value < RETURN_TIME:
+            arduino.write(bytes('r' + str(current_value), 'utf-8'))
+            time.sleep(0.10)
+        current_value = 0
+
+    if k == 82:#R key
+        if current_value > read_time:
+            arduino.write(bytes('R' + str(current_value), 'utf-8'))
+            time.sleep(0.10)
+        current_value = 0
+
+    if k == 101:#e key
+        arduino.write(bytes('e' + str(current_value), 'utf-8'))
+        time.sleep(0.10)
+        current_value = 0
+
+    if k == 69:#E key
+        arduino.write(bytes('E' + str(current_value), 'utf-8'))
+        time.sleep(0.10)
+        current_value = 0
+
+    if k == 43:#+ key
+        arduino.write(bytes('+' + str(current_value), 'utf-8'))
+    if k == 45:#- key
+        arduino.write(bytes('-' + str(current_value), 'utf-8'))
+    if k == 61:#= key
+        arduino.write(bytes('=' + str(current_value), 'utf-8'))
+    if (k == 48):
+        current_value = abs(current_value * 10) + 0
+    elif (k == 49):
+        current_value = abs(current_value * 10) + 1
+    elif (k == 50):
+        current_value = abs(current_value * 10) + 2
+    elif (k == 51):
+        current_value = abs(current_value * 10) + 3
+    elif (k == 52):
+        current_value = abs(current_value * 10) + 4
+    elif (k == 53):
+        current_value = abs(current_value * 10) + 5
+    elif (k == 54):
+        current_value = abs(current_value * 10) + 6
+    elif (k == 55):
+        current_value = abs(current_value * 10) + 7
+    elif (k == 56):
+        current_value = abs(current_value * 10) + 8
+    elif (k == 57):
+        current_value = abs(current_value * 10) + 9
+    elif (k == 8):  # bksp
+        current_value = current_value / 10
+        current_value = int(current_value)
+
+    if k == 113:#q key
+        screen_x_position = screen_x_position - 480
+    if k == 81:#Q key
+        screen_y_position=screen_y_position - 270
+    if k == 119:#w key
+        screen_x_position = screen_x_position + 480
+    if k == 87:  # W key
+        screen_y_position = screen_y_position + 270
+
+
+def click_event_mode3(event, x, y, flags, param):
+    global port_list_cursor
+    global arduino
+    global port_connected
+    global mode
+
+    if event == cv2.EVENT_LBUTTONDOWN and port_connected == 0:
+
+        try:
+            arduino = serial.Serial(port=port_list[port_list_cursor], baudrate=115200, timeout=.1)
+            port_connected = 1
+            print("WINNER")
+        except:
+            print("LOSER")
+            port_connected = 0
+
+    if event == cv2.EVENT_RBUTTONDOWN and port_connected == 1:
+        mode = 4
+
+    if event == 10:
+        if flags > 0:
+            port_list_cursor = min(port_list_cursor + 1, len(port_list)-1)
+        if flags < 0:
+            port_list_cursor = max(0,port_list_cursor -1)
+
+
+def click_event_mode1(event, x, y, flags, param):
+    global use_results
+    global mode
+    global options_screen
+    global cursor_position_value
+    global current_results
+    global current_results_in_options
+    global blank_screen
+    global full_screen
+    global options
+
+    if event == cv2.EVENT_RBUTTONDOWN:
+        use_results[int((y - 5) / 20)] = int(not use_results[int((y - 5) / 20)])
+        print(str(int((y - 5) / 20)) + "," + str(use_results[int((y - 5) / 20)]))
+    if event == cv2.EVENT_MOUSEMOVE:
+        if x > 960:
+            cursor_position_value = int((x-960)/240)*25 + min(24,int((y-5)/20))
+            print(cursor_position_value)
+            # (960 + 240 * int(p / 25), 25 + (25 * p) % 625)
+    if event == cv2.EVENT_MBUTTONDOWN:
+        cv2.destroyAllWindows()
+        #full_screen=0
+        #draw_screen2()
+
+        x=input("Enter new value for " + str(options_titles[options_screen])+":" or '')
+        current_results_in_options[options_screen] = len(options[options_screen])
+        options[options_screen].insert(len(options[options_screen]),x)
+
+        #full_screen=1
+
+    if event == cv2.EVENT_LBUTTONDOWN:
+        if x < 960:
+            options_screen = min(49, int((y - 5) / 20))
+            print(options_screen)
+            mode = 1
+        if x > 960:
+            current_results[options_screen]=options[options_screen][cursor_position_value]
+            current_results_in_options[options_screen]=cursor_position_value
+            mode = 2
+
+    if event==10:
+        if flags < 0:
+            current_results_in_options[options_screen]=min(current_results_in_options[options_screen]+1,len(options[options_screen])-1)
+            current_results[options_screen]=options[options_screen][current_results_in_options[options_screen]]
+        if flags > 0:
+            current_results_in_options[options_screen] = max(current_results_in_options[options_screen] - 1, 0)
+            current_results[options_screen] = options[options_screen][current_results_in_options[options_screen]]
+
+
+def click_event_mode2(event, x, y, flags, param):
+    global use_results
+    global mode
+    global options_screen
+    global cursor_position_value
+    global current_results_in_options
+    global current_results
+    global options
+
+    if event == cv2.EVENT_MBUTTONDOWN:
+        cv2.destroyAllWindows()
+        x=input("Enter new value for " + str(options_titles[cursor_position_value])+":" or '')
+        current_results[cursor_position_value] = x
+        current_results_in_options[cursor_position_value] = len(options[cursor_position_value])
+        if x not in options[cursor_position_value] :
+            options[cursor_position_value].insert(len(options[cursor_position_value]), x)
+
+
+
+    if event == cv2.EVENT_MOUSEMOVE:
+        cursor_position_value = min(int((y-5)/20),49)
+    if event==10:
+        if flags > 0:
+            current_results_in_options[cursor_position_value]=min(current_results_in_options[cursor_position_value]+1,len(options[options_screen])-1)
+            current_results[cursor_position_value]=options[cursor_position_value][current_results_in_options[cursor_position_value]]
+        if flags < 0:
+            current_results_in_options[cursor_position_value]=max(current_results_in_options[cursor_position_value]-1,0)
+            current_results[cursor_position_value]=options[cursor_position_value][current_results_in_options[cursor_position_value]]
+    if event == cv2.EVENT_RBUTTONDOWN:
+        use_results[cursor_position_value]=int(not use_results[cursor_position_value])
+        print(str(cursor_position_value)+","+str(use_results[cursor_position_value]))
+    if event == cv2.EVENT_LBUTTONDOWN:
+        options_screen=cursor_position_value
+        print(options_screen)
+        mode = 1
+    copy_text=''
+    v=range(0,50,1)
+    for p in v:
+        if use_results[p]==1:
+            copy_text=copy_text+str(current_results[p])+" "
+    copy_text=copy_text+"source video"
+    if copy_and_paste_mode == 1:
+        pyperclip.copy(copy_text)
+
+
+def draw_screen1():
+    global blank_screen
+    blank_screen[0] = np.zeros((1080, 1920, 3), dtype='uint8')  # consider adding within mode to not overwrite each time
+    v = range(0, 50, 1)
+    for p in v:
+        if use_results[p] == 1:
+            cv2.rectangle(blank_screen[0], (0, 5 + 20 * p), (960, 5 + 20 * p + 20), (0, 128, 0), -1)
+        cv2.putText(blank_screen[0], str(options_titles[p]), (0, 20 + 20 * p), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                    (255, 255, 255), 1)
+
+    cv2.rectangle(blank_screen[0], (960 + 240 * int(current_results_in_options[options_screen] / 25),
+                                    5 + int(current_results_in_options[options_screen] % 25) * 20), (
+                      960 + 240 + 240 * int(current_results_in_options[options_screen] / 25),
+                      5 + 20 + int(current_results_in_options[options_screen] % 25) * 20), (125, 0, 0), -1)
+
+
+
+    cv2.rectangle(blank_screen[0], (0, 5 + 20 * options_screen), (960, 5 + 20 * options_screen + 20), (255, 255, 255),
+                  2)
+
+    v = range(0, len(options[options_screen]), 1)
+    for p in v:
+        cv2.putText(blank_screen[0], str(options[options_screen][p]), (960 + 240 * int(p / 25), 20 + (20 * p) % 500), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                    (255, 255, 255), 1)
+
+    cv2.putText(blank_screen[0],str(current_value),(1880,25),cv2.FONT_HERSHEY_SIMPLEX, 0.4,(255, 255, 255), 1)
+
+    show_screen("screen1", blank_screen[0], click_event_mode1)
+    generic_keys()
+
+
+def draw_screen2():
+    global blank_screen
+    blank_screen[0] = np.zeros((1080, 1920, 3), dtype='uint8')  # consider adding within mode to not overwrite each time
+    v = range(0, 50, 1)
+    for p in v:
+        if use_results[p] == 1:
+            cv2.rectangle(blank_screen[0], (0, 5 + 20 * p), (960, 5 + 20 * p + 20), (0, 128, 0), -1)
+        cv2.putText(blank_screen[0], str(options_titles[p]), (0, 20 + 20 * p), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                    (255, 255, 255), 1)
+        cv2.putText(blank_screen[0], str(p), (200, 20 + 20 * p), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                    (255, 255, 255), 1)
+        cv2.putText(blank_screen[0], str(current_results[p]), (960, 20 + 20 * p), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                    (255, 255, 255), 1)
+    cv2.putText(blank_screen[0],str(current_value),(1880,25),cv2.FONT_HERSHEY_SIMPLEX, 0.4,(255, 255, 255), 1)
+
+    show_screen("screen1", blank_screen[0], click_event_mode2)
+    generic_keys()
+
+
+def calculate_averages():
+    global OPT1_max
+    global OPT1_min
+    global OPT2_max
+    global OPT2_min
+    global OPT1_time
+    global OPT1_found
+    global OPT2_time
+    global OPT2_found
+
+    OPT1_max = 0
+    OPT1_min = 128
+    OPT1_found=0
+    OPT1_time = 0
+    OPT2_max = 0
+    OPT2_min = 128
+    OPT2_found = 0
+    OPT2_time = 0
+
+    v=range(0,read_time,1)
+    for p in v:
+        if PT1[loop_number*1000 + p] > OPT1_max:
+            OPT1_max = PT1[loop_number*1000 + p]
+        if PT2[loop_number*1000 + p] > OPT2_max:
+            OPT2_max = PT2[loop_number*1000 + p]
+        if PT1[loop_number * 1000 + p] < OPT1_min:
+            OPT1_min = PT1[loop_number * 1000 + p]
+        if PT2[loop_number * 1000 + p] > OPT2_max:
+            OPT2_min = PT2[loop_number * 1000 + p]
+            
+    v=range(expect_time,RETURN_TIME,1)
+    for p in v:
+        if (OPT1_found ==0) and (greater_than == 1) and (PT1[loop_number*1000 + p] > OPT1_max + margin):
+            OPT1_time = p
+            OPT1_found = PT1[loop_number*1000 + p]
+        if (OPT1_found ==0) and (less_than == 1) and (PT1[loop_number*1000 + p] < OPT1_max - margin):
+            OPT1_time = p
+            OPT1_found = PT1[loop_number*1000 + p]
+        if both_OPT == 1:
+            if (OPT2_found ==0) and (greater_than == 1) and (PT2[loop_number*1000 + p] > OPT2_max + margin):
+                OPT2_time = p
+                OPT2_found = PT2[loop_number*1000 + p]
+            if (OPT2_found ==0) and (less_than == 1) and (PT2[loop_number*1000 + p] < OPT2_max - margin):
+                OPT2_time = p
+                OPT2_found = PT2[loop_number*1000 + p]
+            
+        
+        
+    
+
+
+
+
+
+
+while True:
+
+    if mode == 1:
+        draw_screen1()
+        if k == 32:# space bar
+            cv2.destroyAllWindows()
+            save_titles("_temp.csv")
+            mode = 2
+
+    if mode == 2:
+        draw_screen2()
+        if k == 32:# space bar
+            cv2.destroyAllWindows()
+            time0 = int(time.time())
+            save_titles("_temp.csv")
+            if cartridge_inserted == 1:
+                mode = 3
+            if cartridge_inserted == 0:
+                keyboard.press(Key.f7)  # starts obs recording
+                keyboard.press(Key.shift)
+                sleep(0.05)
+                keyboard.release(Key.f7)
+                keyboard.release(Key.shift)
+                sleep(0.05)
+
+                keyboard.press(Key.f4)  # #switch to scene video capture USB shift + f4
+                keyboard.press(Key.shift)
+                sleep(0.05)
+                keyboard.release(Key.f4)
+                keyboard.release(Key.shift)
+                sleep(0.05)
+
+                time0 = int(time.time())
+
+    if mode == 3:
+        blank_screen = np.zeros((1080, 1920, 3), dtype='uint8')
+        cv2.putText(blank_screen, (port_list[port_list_cursor]), (1750, 1000), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        if port_connected == 1:
+            cv2.circle(blank_screen, (1760,1040), 1, (0, 255, 0), 5)
+        show_screen("screen", blank_screen, click_event_mode3)
+        generic_keys()
+
+    if mode == 4:
+
+        blank_screen = np.zeros((1080, 1920, 3), dtype='uint8')
+        v=range(0,1000,1)
+        for p in v:
+            if int(PT1[loop_number*1000+p]) == int(PT2[loop_number*1000+p]):
+                cv2.circle(blank_screen, (p, 128 - int(PT1[loop_number * 1000 + p])), 1, (255, 0, 255), 1)
+            if int(PT1[loop_number * 1000 + p]) != int(PT2[loop_number * 1000 + p]):
+                cv2.circle(blank_screen, (p,128-int(PT1[loop_number*1000+p])),1,(255, 0, 0), 1)
+                cv2.circle(blank_screen, (p, 128 - int(PT2[loop_number * 1000 + p])), 1, (0, 0, 255), 1)
+        cv2.line(blank_screen, (read_time,0), (read_time,128),(0, 255, 0), 1)
+        cv2.line(blank_screen, (expect_time, 0), (expect_time, 128), (0, 255, 255), 1)
+        cv2.line(blank_screen, (RETURN_TIME, 0), (RETURN_TIME, 128), (0, 128, 255), 1)
+        cv2.line(blank_screen, (END_TIME, 0), (END_TIME, 128), (255, 255, 255), 1)
+        cv2.line(blank_screen, (OPT1_time, 0), (OPT1_time, 128), (255, 0, 0), 1)
+        cv2.line(blank_screen, (OPT2_time, 0), (OPT2_time, 128), (0, 0, 255), 1)
+
+        cv2.putText(blank_screen, (str(current_value)), (0, 960), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+
+        cv2.putText(blank_screen, ("loop_number "), (0, 1000),cv2.FONT_HERSHEY_SIMPLEX, 1,(255, 255, 255), 2)
+        cv2.putText(blank_screen, ( str(loop_number)), (0, 1040), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        cv2.putText(blank_screen, ("LOOP_MAX "), (250, 1000),cv2.FONT_HERSHEY_SIMPLEX, 1,(255, 255, 255), 2)
+        cv2.putText(blank_screen, ( str(LOOP_MAX)), (250, 1040), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        cv2.putText(blank_screen, ("read_time "), (500, 1000),cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 255, 0), 2)
+        cv2.putText(blank_screen, ( str(read_time)), (500, 1040), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(blank_screen, ("RETURN_TIME "), (750, 1000),cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 128, 255), 2)
+        cv2.putText(blank_screen, ( str(RETURN_TIME)), (750, 1040), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 128, 255), 2)
+        cv2.putText(blank_screen, ( str(expect_time)), (625, 1040), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+        cv2.putText(blank_screen, (str(END_TIME)), (875, 1040), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        cv2.putText(blank_screen, ("1P"), (1000, 1000), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        if both_OPT == 1:
+            cv2.putText(blank_screen, ("2P"), (1000, 1040), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        cv2.putText(blank_screen, (port_list[port_list_cursor]), (1750, 1000), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        cv2.putText(blank_screen, ("margin "), (1250, 1000),cv2.FONT_HERSHEY_SIMPLEX, 1,(255, 255, 255), 2)
+        cv2.putText(blank_screen, ( str(margin)), (1250, 1040), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        cv2.putText(blank_screen, (str(MARGIN)), (1325, 1040), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+
+        if greater_than == 1:
+            cv2.putText(blank_screen, ("+"), (1500, 1040), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        if less_than == 1:
+            cv2.putText(blank_screen, ("-"), (1600, 1040), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        if port_connected == 1:
+            cv2.circle(blank_screen, (1760,1040), 1, (0, 255, 0), 5)
+
+        #cv2.circle(blank_screen, (0,0), 1, (0, 128, 255), 50)
+
+        cv2.putText(blank_screen, (str(OPT1_found)), (1200, 160), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+        cv2.putText(blank_screen, (str(OPT1_min)), (1200, 200), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+        cv2.putText(blank_screen, (str(OPT1_max)), (1200, 240), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+        cv2.putText(blank_screen, (str(OPT1_time)), (1200, 280), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+        cv2.putText(blank_screen, (str(PT1[loop_number*1000 + current_x])), (1300, 160), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+        cv2.putText(blank_screen, (str(current_x)), (1300, 280), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+
+
+        cv2.putText(blank_screen, (str(OPT2_found)), (1200, 320), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        cv2.putText(blank_screen, (str(OPT2_min)), (1200, 360), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        cv2.putText(blank_screen, (str(OPT2_max)), (1200, 400), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        cv2.putText(blank_screen, (str(OPT2_time)), (1200, 440), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        cv2.putText(blank_screen, (str(PT2[loop_number*1000 + current_x])), (1300, 320), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        cv2.putText(blank_screen, (str(current_x)), (1300, 440), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0,255), 2)
+
+
+        show_screen("screen", blank_screen, click_event_mode4)
+        generic_keys()
+
+
+        data = arduino.readline()
+        data = str(data)
+        data = data.replace("b'", "")
+        data = data.replace("'", "")
+        data = data.replace("\\r", "").replace("\\n", "")
+        if data != "":
+            if data[0] == 'l':
+                loop_number = int(data[1:])
+
+            if data[0] == 'L':
+                LOOP_MAX=int(data[1:])
+
+            if data[0] == 'r':
+                read_time = int(data[1:])
+
+            if data[0] == 'R':
+                RETURN_TIME = int(data[1:])
+
+            if data[0] == 'P':
+                both_OPT=1
+
+            if data[0] == 'p':
+                both_OPT = 0
+
+            if data[0] =='m':
+                margin = int(data[1:])
+
+            if data[0] =='M':
+                MARGIN = int(data[1:])
+
+            if data[0]=='e':
+                expect_time = int(data[1:])
+
+            if data[0] =='E':
+                END_TIME = int(data[1:])
+
+            if data[0] == '+':
+                greater_than = 1
+                less_than =0
+            if data[0] == '-':
+                greater_than = 0
+                less_than = 1
+            if data[0]=='=':
+                greater_than = 1
+                less_than = 1
+
+            if data[0] == 'u':
+                data = data[1:]
+                data_array  = data.split(",")
+                data_array.pop()#include this otherwise last comma causes empty 501 entry
+                v=range(0,len(data_array),1)
+                for p in v:
+                    PT1[loop_number*1000 + p]=data_array[p]
+                calculate_averages()
+
+            if data[0] == 'v':
+                data = data[1:]
+                data_array = data.split(",")
+                data_array.pop()  # include this otherwise last comma causes empty 501 entry
+                v = range(0, len(data_array), 1)
+                for p in v:
+                    PT2[loop_number * 1000 + p] = data_array[p]
+                calculate_averages()
+
+
+            #time2 = time.time_ns()
+            #print(float(time2 - time1) / 1000000)
+    if mode == 10:
+        break
