@@ -1,0 +1,343 @@
+#include "Arduino_LED_Matrix.h"
+
+ArduinoLEDMatrix matrix;
+unsigned long time1 = 0;
+unsigned long time2 = 0;
+unsigned long time3 = 0;
+
+int OPT1_read = 0;
+int OPT1_min = 128;
+int OPT1_max = 0;
+int OPT1_time = 0;
+int OPT1_found=0;
+
+int OPT2_read = 0;
+int OPT2_min = 128;
+int OPT2_max = 0;
+int OPT2_time = 0;
+int OPT2_found=0;
+
+int margin = 1;
+
+int both_OPT = 0;
+
+byte digits[10][8][12] = {{
+{0,0,1,1,1,1,0,0,0,0,0,0},
+{0,1,1,0,0,1,1,0,0,0,0,0},
+{0,1,1,0,1,1,1,0,0,0,0,0},
+{0,1,1,1,0,1,1,0,0,0,0,0},
+{0,1,1,0,0,1,1,0,0,0,0,0},
+{0,1,1,0,0,1,1,0,0,0,0,0},
+{0,0,1,1,1,1,0,0,0,0,0,0},
+{0,0,0,0,0,0,0,0,0,0,0,0}
+},{
+{0,0,0,1,1,0,0,0,0,0,0,0},
+{0,0,0,1,1,0,0,0,0,0,0,0},
+{0,0,1,1,1,0,0,0,0,0,0,0},
+{0,0,0,1,1,0,0,0,0,0,0,0},
+{0,0,0,1,1,0,0,0,0,0,0,0},
+{0,0,0,1,1,0,0,0,0,0,0,0},
+{0,1,1,1,1,1,1,0,0,0,0,0},
+{0,0,0,0,0,0,0,0,0,0,0,0}
+},{
+{0,0,1,1,1,1,0,0,0,0,0,0},
+{0,1,1,0,0,1,1,0,0,0,0,0},
+{0,0,0,0,0,1,1,0,0,0,0,0},
+{0,0,0,0,1,1,0,0,0,0,0,0},
+{0,0,1,1,0,0,0,0,0,0,0,0},
+{0,1,1,0,0,0,0,0,0,0,0,0},
+{0,1,1,1,1,1,1,0,0,0,0,0},
+{0,0,0,0,0,0,0,0,0,0,0,0}
+},{
+{0,0,1,1,1,1,0,0,0,0,0,0},
+{0,1,1,0,0,1,1,0,0,0,0,0},
+{0,0,0,0,0,1,1,0,0,0,0,0},
+{0,0,0,1,1,1,0,0,0,0,0,0},
+{0,0,0,0,0,1,1,0,0,0,0,0},
+{0,1,1,0,0,1,1,0,0,0,0,0},
+{0,0,1,1,1,1,0,0,0,0,0,0},
+{0,0,0,0,0,0,0,0,0,0,0,0}
+},{
+{0,0,0,0,0,1,1,0,0,0,0,0},
+{0,0,0,0,1,1,1,0,0,0,0,0},
+{0,0,0,1,1,1,1,0,0,0,0,0},
+{0,1,1,0,0,1,1,0,0,0,0,0},
+{0,1,1,1,1,1,1,1,0,0,0,0},
+{0,0,0,0,0,1,1,0,0,0,0,0},
+{0,0,0,0,0,1,1,0,0,0,0,0},
+{0,0,0,0,0,0,0,0,0,0,0,0}
+},{
+{0,1,1,1,1,1,1,0,0,0,0,0},
+{0,1,1,0,0,0,0,0,0,0,0,0},
+{0,1,1,1,1,1,0,0,0,0,0,0},
+{0,0,0,0,0,1,1,0,0,0,0,0},
+{0,0,0,0,0,1,1,0,0,0,0,0},
+{0,1,1,0,0,1,1,0,0,0,0,0},
+{0,0,1,1,1,1,0,0,0,0,0,0},
+{0,0,0,0,0,0,0,0,0,0,0,0}
+},{
+{0,0,1,1,1,1,0,0,0,0,0,0},
+{0,1,1,0,0,1,1,0,0,0,0,0},
+{0,1,1,0,0,0,0,0,0,0,0,0},
+{0,1,1,1,1,1,0,0,0,0,0,0},
+{0,1,1,0,0,1,1,0,0,0,0,0},
+{0,1,1,0,0,1,1,0,0,0,0,0},
+{0,0,1,1,1,1,0,0,0,0,0,0},
+{0,0,0,0,0,0,0,0,0,0,0,0}
+},{
+{0,1,1,1,1,1,1,0,0,0,0,0},
+{0,1,1,0,0,1,1,0,0,0,0,0},
+{0,0,0,0,1,1,0,0,0,0,0,0},
+{0,0,0,1,1,0,0,0,0,0,0,0},
+{0,0,0,1,1,0,0,0,0,0,0,0},
+{0,0,0,1,1,0,0,0,0,0,0,0},
+{0,0,0,1,1,0,0,0,0,0,0,0},
+{0,0,0,0,0,0,0,0,0,0,0,0}
+},{
+{0,0,1,1,1,1,0,0,0,0,0,0},
+{0,1,1,0,0,1,1,0,0,0,0,0},
+{0,1,1,0,0,1,1,0,0,0,0,0},
+{0,0,1,1,1,1,0,0,0,0,0,0},
+{0,1,1,0,0,1,1,0,0,0,0,0},
+{0,1,1,0,0,1,1,0,0,0,0,0},
+{0,0,1,1,1,1,0,0,0,0,0,0},
+{0,0,0,0,0,0,0,0,0,0,0,0}
+},{
+{0,0,1,1,1,1,0,0,0,0,0,0},
+{0,1,1,0,0,1,1,0,0,0,0,0},
+{0,1,1,0,0,1,1,0,0,0,0,0},
+{0,0,1,1,1,1,1,0,0,0,0,0},
+{0,0,0,0,0,1,1,0,0,0,0,0},
+{0,1,1,0,0,1,1,0,0,0,0,0},
+{0,0,1,1,1,1,0,0,0,0,0,0},
+{0,0,0,0,0,0,0,0,0,0,0,0}
+}};
+
+byte frame[8][12] = {
+    {1,1,1,1,1,1,1,1,1,1,1,1},
+  {0,0,0,0,0,0,0,0,0,0,0,0},
+    {1,1,1,1,1,1,1,1,1,1,1,1},
+  {0,0,0,0,0,0,0,0,0,0,0,0},
+    {1,1,1,1,1,1,1,1,1,1,1,1},
+  {0,0,0,0,0,0,0,0,0,0,0,0},
+    {1,1,1,1,1,1,1,1,1,1,1,1},
+  {0,0,0,0,0,0,0,0,0,0,0,0}
+};
+
+byte frame_plus[8][12] = {
+  {0,0,0,0,0,1,1,0,0,0,0},
+    {0,0,0,0,0,1,1,0,0,0,0},
+    {0,0,0,0,0,1,1,0,0,0,0},
+  {1,1,1,1,1,1,1,1,1,1,1,1},
+    {1,1,1,1,1,1,1,1,1,1,1,1},
+      {0,0,0,0,0,1,1,0,0,0,0},
+      {0,0,0,0,0,1,1,0,0,0,0},
+      {0,0,0,0,0,1,1,0,0,0,0}
+};
+
+byte frame_minus[8][12] = {    
+  {0,0,0,0,0,0,0,0,0,0,0,0},
+  {0,0,0,0,0,0,0,0,0,0,0,0},
+  {0,0,0,0,0,0,0,0,0,0,0,0},
+  {1,1,1,1,1,1,1,1,1,1,1,1},
+    {1,1,1,1,1,1,1,1,1,1,1,1},
+    {0,0,0,0,0,0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0,0,0,0,0,0}
+};
+
+int greater_than = 1;
+int less_than = 1;
+int UNPRESSED = 1;
+int PRESSED = 0;
+int mode = 0;
+int button_state = UNPRESSED;
+int button_prior = UNPRESSED;
+
+void setup() {
+
+pinMode(13,OUTPUT);//red wire to 1P - inverted
+pinMode(12,OUTPUT);//red wire to 1P - inverted
+pinMode(11,OUTPUT);//red wire to 1P - held
+pinMode(10,OUTPUT);//red wire to 1P - held
+pinMode(9,OUTPUT);//red wire to 1P
+pinMode(8,OUTPUT);//red wire to 1P
+
+
+digitalWrite(12,LOW);
+digitalWrite(11,LOW);
+digitalWrite(10,LOW);
+digitalWrite(9,LOW);
+digitalWrite(8,LOW);
+  
+  
+
+digitalWrite(13,0);//LOW or 0 is LED off, HIGH or 1 is LED on. 
+pinMode(7,INPUT_PULLUP);//connected to ground, closed circuit is 0, open circuit is 1
+pinMode(6,OUTPUT);
+digitalWrite(6,LOW);//closed circuit is 0, open circuit is 1
+
+pinMode(5,INPUT_PULLUP);
+pinMode(4,OUTPUT);
+digitalWrite(4,LOW);//closed circuit is 0, open circuit is 1
+
+pinMode(3,INPUT_PULLUP);
+pinMode(2,OUTPUT);
+digitalWrite(2,LOW);//closed circuit is 0, open circuit is 1
+
+//digitalWrite(?,HIGH);//always 1
+
+pinMode(A2,INPUT);//A0 for OPT1-top
+pinMode(A1,OUTPUT);//5V for OPT1-top
+digitalWrite(A1,HIGH);//5V for OPT1-top
+pinMode(A0,OUTPUT);//G for OPT1-top
+digitalWrite(A0,LOW);//G for OPT1-top
+
+pinMode(A5,INPUT);//A0 for OPT2-top
+pinMode(A4,OUTPUT);//5V for OPT2-top
+digitalWrite(A4,HIGH);//5V for OPT2-top
+pinMode(A3,OUTPUT);//G for OPT2-top
+digitalWrite(A3,LOW);//G for OPT2-top
+
+
+  Serial.begin(115200);
+  matrix.begin();
+
+  if (digitalRead(7) == 0){both_OPT = 1;}
+
+
+  if (digitalRead(5) == 0){greater_than = 1; less_than=0;}
+  if (digitalRead(3) == 0){greater_than = 0; less_than =1;}
+if (greater_than == 1){matrix.renderBitmap(frame_plus,8,12);delay(250);}
+if (less_than == 1){matrix.renderBitmap(frame_minus,8,12);delay(250);}
+
+pinMode(5,OUTPUT);
+pinMode(4,OUTPUT);
+digitalWrite(5,LOW);//BUTTON HELD ON
+digitalWrite(4,LOW);
+
+pinMode(3,OUTPUT);//BUTTON HELD OFF
+pinMode(2,OUTPUT);
+digitalWrite(3,LOW);
+digitalWrite(2,LOW);
+
+
+
+}
+
+void clear_frame(){
+for (int i=0;i<8;i++){
+  for (int j=0;j<12;j++){
+    frame[i][j]=0;
+  }}}
+
+void number_to_led(int _number, int _row){
+  if (_number < 129 && _row <7){
+    for (int i=0;i<int(_number/10);i++){
+    frame[_row][i]=1;}
+    for(int i=0;i < int (_number%10);i++){
+    frame[_row+1][i]=1;}}}
+
+
+void loop() {
+  time1=millis();
+  if ((time1)!=(time2)){
+    button_state = digitalRead(7);
+    
+    digitalWrite(8,button_state);//red wire to 1P
+    digitalWrite(9,button_state);//red wire to 1P
+    digitalWrite(12,abs(1-button_state));//red wire to 1P - inverted
+    digitalWrite(13,abs(1-button_state));//red wire to 1P - inverted. Also LED!
+
+    if ((button_state == UNPRESSED) && (button_prior == UNPRESSED)){mode = 1;}
+    if ((button_state == PRESSED)   && (button_prior == PRESSED)){mode = 2;}
+    if ((button_state == UNPRESSED) && (button_prior == PRESSED)){mode = 3;}
+    if ((button_state == PRESSED)   && (button_prior == UNPRESSED)){mode = 4;}
+
+if (mode == 1){//nothing pressed
+OPT1_read=analogRead(A2)/8;
+OPT2_read=analogRead(A5)/8;
+if ((OPT1_read < OPT1_min) && (less_than == 1)){OPT1_min=OPT1_read;}//Serial.print("-");Serial.println(OPT1_read);
+if ((OPT1_read > OPT1_max) && (greater_than == 1)){OPT1_max=OPT1_read;}//Serial.print("+");Serial.println(OPT1_read);
+if ((OPT2_read < OPT2_min) && (less_than == 1)){OPT2_min=OPT2_read;}//Serial.print("-");Serial.println(OPT2_read);
+if ((OPT2_read > OPT2_max) && (greater_than == 1)){OPT2_max=OPT2_read;}//Serial.print("+");Serial.println(OPT2_read);
+clear_frame();
+number_to_led(OPT1_read,0);
+if (less_than == 1){number_to_led(OPT1_min,2);}
+if (greater_than==1){number_to_led(OPT1_max,4);}
+matrix.renderBitmap(frame,8,12);
+}
+
+if (mode == 2){//held
+OPT1_read=analogRead(A2)/8;
+OPT2_read=analogRead(A5)/8;
+if ((OPT1_read > OPT1_max+margin) && (greater_than == 1) && (OPT1_found==0)){OPT1_time = time1-time3;OPT1_found=OPT1_read;}
+if ((OPT1_read < OPT1_min-margin) && (less_than == 1) && (OPT1_found==0)){OPT1_time = time1-time3;OPT1_found=OPT1_read;}
+if ((OPT2_read > OPT2_max+margin) && (greater_than == 1) && (OPT2_found==0)){OPT2_time = time1-time3;OPT2_found=OPT2_read;}
+if ((OPT2_read < OPT2_min-margin) && (less_than == 1) && (OPT2_found==0)){OPT2_time = time1-time3;OPT2_found=OPT2_read;}
+clear_frame();
+if (OPT1_time !=0){number_to_led(OPT1_found,0);}
+if (OPT1_time == 0){number_to_led(OPT1_read,0);}
+if (less_than == 1){number_to_led(OPT1_min,2);}
+if (greater_than==1){number_to_led(OPT1_max,4);}
+if (OPT1_time == 0){number_to_led(time1-time3,6);}
+if (OPT1_time !=0){number_to_led(OPT1_time,6);}
+
+matrix.renderBitmap(frame,8,12);
+
+}
+
+if (mode == 3){//released
+  Serial.print("A");Serial.print(OPT1_found);Serial.print("@");Serial.print(OPT1_time);
+  if (greater_than == 1){Serial.print(">");Serial.print(OPT1_max);}
+  if (less_than == 1){Serial.print ("<");Serial.print(OPT1_min);}
+ Serial.println();
+
+   Serial.print("B");Serial.print(OPT2_found);Serial.print("@");Serial.print(OPT2_time);
+  if (greater_than == 1){Serial.print(">");Serial.print(OPT2_max);}
+  if (less_than == 1){Serial.print ("<");Serial.print(OPT2_min);}
+ Serial.println();
+
+clear_frame();
+if ((OPT1_time < 1000) && (OPT1_time !=0)){
+
+if (OPT1_time > 99){matrix.renderBitmap(digits[OPT1_time/100],8,12);delay(250);clear_frame();matrix.renderBitmap(frame,8,12);delay(50);}
+matrix.renderBitmap(digits[(OPT1_time%100)/10],8,12);delay(250);clear_frame();matrix.renderBitmap(frame,8,12);delay(50);
+matrix.renderBitmap(digits[OPT1_time%10],8,12);delay(250);clear_frame();matrix.renderBitmap(frame,8,12);delay(50);
+}
+
+if (both_OPT == 1){
+matrix.renderBitmap(frame_minus,8,12);delay(300);
+
+if ((OPT2_time < 1000) && (OPT2_time!=0)){
+if (OPT2_time > 99){matrix.renderBitmap(digits[OPT2_time/100],8,12);delay(250);clear_frame();matrix.renderBitmap(frame,8,12);delay(50);}
+matrix.renderBitmap(digits[(OPT2_time%100)/10],8,12);delay(250);clear_frame();matrix.renderBitmap(frame,8,12);delay(50);
+matrix.renderBitmap(digits[OPT2_time%10],8,12);delay(250);clear_frame();matrix.renderBitmap(frame,8,12);delay(50);
+}
+}
+
+ OPT1_read = 0;
+ OPT1_min = 128;
+ OPT1_max = 0;
+ OPT1_time = 0;
+ OPT1_found=0;
+
+ 
+ OPT2_read = 0;
+ OPT2_min = 128;
+ OPT2_max = 0;
+ OPT2_time = 0;
+ OPT2_found=0;
+
+//delay(200);
+clear_frame();}
+
+if (mode == 4){//just pressed
+time3=millis();
+}
+
+button_prior=button_state;
+time2=millis();
+  
+  
+}}
