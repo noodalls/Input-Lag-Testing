@@ -4,6 +4,8 @@ ArduinoLEDMatrix matrix;
 unsigned long time1 = 0;
 unsigned long time2 = 0;
 unsigned long time3 = 0;
+unsigned long elapsed_time = 0;
+
 
 unsigned long timea=0;
 unsigned long timeb=0;
@@ -31,10 +33,10 @@ int OPT2_history[1000];
 int loop_number = 0;
 long LOOP_MAX = 999;
 
-int read_time = 500;
-int RETURN_TIME = 1000;
-int expect_time = 600;
-int END_TIME = 1200;
+int read_time = 100;
+int RETURN_TIME = 500;
+int expect_time = 120;
+int END_TIME = 999;
 
 
 
@@ -176,6 +178,8 @@ byte frame_minus[8][12] = {
 
 int greater_than = 1;
 int less_than = 1;
+
+int HELD = 2;
 int UNPRESSED = 1;
 int PRESSED = 0;
 int mode = 0;
@@ -234,8 +238,8 @@ digitalWrite(A3,LOW);//G for OPT2-top
   Serial.setTimeout(5);
   matrix.begin();
 
-  if (digitalRead(7) == 0){both_OPT = 1;}
-
+  if (digitalRead(7) == 0){both_OPT = 0;}
+  if (digitalRead(7) == 1){both_OPT = 1;}
 
   if (digitalRead(5) == 0){greater_than = 1; less_than=0;}
   if (digitalRead(3) == 0){greater_than = 0; less_than =1;}
@@ -245,14 +249,14 @@ if (less_than == 1){matrix.renderBitmap(frame_minus,8,12);delay(250);}
 if (both_OPT == 0){matrix.renderBitmap(digits[1],8,12);delay(125);matrix.renderBitmap(P_char,8,12);delay(125);}
 if (both_OPT == 1){matrix.renderBitmap(digits[2],8,12);delay(125);matrix.renderBitmap(P_char,8,12);delay(125);}
 
-pinMode(5,OUTPUT);
+//pinMode(5,OUTPUT);
 pinMode(4,OUTPUT);
-digitalWrite(5,LOW);//BUTTON HELD ON
+//digitalWrite(5,LOW);//BUTTON HELD ON
 digitalWrite(4,LOW);
 
-pinMode(3,OUTPUT);//BUTTON HELD OFF
+//pinMode(3,OUTPUT);//BUTTON HELD OFF
 pinMode(2,OUTPUT);
-digitalWrite(3,LOW);
+//digitalWrite(3,LOW);
 digitalWrite(2,LOW);
 
 Serial.print("L");Serial.println(LOOP_MAX);
@@ -289,11 +293,15 @@ void loop() {
   time1=millis();
   if ((time1)!=(time2)){
     button_state = digitalRead(7);
+    if (digitalRead(5) == PRESSED){button_state = HELD;}
    
     if ((button_state == UNPRESSED) && (button_prior == UNPRESSED)){mode = 1;}
     if ((button_state == PRESSED)   && (button_prior == PRESSED)){mode = 2;}
     if ((button_state == UNPRESSED) && (button_prior == PRESSED)){mode = 3;}
     if ((button_state == PRESSED)   && (button_prior == UNPRESSED)){mode = 4;}
+    if ((button_state == HELD)   && (button_prior == UNPRESSED)){mode = 5;}
+    if ((button_state == HELD)   && (button_prior == HELD)){mode = 6;}
+    if (loop_number > LOOP_MAX){mode = 1;}
 
 /////////////////////////////////////////////////////////////////////////////////
 
@@ -349,7 +357,7 @@ if ((OPT2_read > OPT2_max) && ((time1-time3) < read_time)){OPT2_max = OPT2_read;
 
 if ((time1-time3) < RETURN_TIME){OPT1_history[time1-time3]=OPT1_read;OPT2_history[time1-time3]=OPT2_read;}
 
-if ((time1-time3) == read_time){digitalWrite(8,PRESSED);digitalWrite(9,PRESSED);digitalWrite(12,UNPRESSED);digitalWrite(13,UNPRESSED);}
+if ((time1-time3) == read_time){digitalWrite(8,PRESSED);digitalWrite(9,PRESSED);digitalWrite(12,UNPRESSED);digitalWrite(13,UNPRESSED);}// this will need a lot in the rewrite
 
 if (((time1-time3)>read_time) && (OPT1_read > OPT1_max+margin) && (greater_than == 1) && (OPT1_found==0)){OPT1_time = time1-time3-read_time;OPT1_found=OPT1_read;}
 if (((time1-time3)>read_time) && (OPT1_read < OPT1_min-margin) && (less_than == 1) && (OPT1_found==0)){OPT1_time = time1-time3-read_time;OPT1_found=OPT1_read;}
@@ -424,6 +432,40 @@ OPT2_min = 128;OPT2_max = 0;OPT2_time=0;OPT2_found=0;
 
 OPT1_read=analogRead(A2)/8;OPT2_read=analogRead(A5)/8;
 OPT1_history[0]=OPT1_read;OPT2_history[0]=OPT2_read;
+}
+
+if (mode == 6){//HELD button continues
+  //Serial.println(time1-time3);
+elapsed_time = (time1-time3);// consider putting this in main loop
+OPT1_read=analogRead(A2)/8;OPT2_read=analogRead(A5)/8;
+OPT1_history[elapsed_time]=OPT1_read;OPT2_history[elapsed_time]=OPT2_read;
+
+if ((elapsed_time) == read_time){digitalWrite(8,PRESSED);digitalWrite(9,PRESSED);digitalWrite(12,UNPRESSED);digitalWrite(13,UNPRESSED);}// this will need a lot in the rewrite
+if ((elapsed_time) == RETURN_TIME){digitalWrite(8,UNPRESSED);digitalWrite(9,UNPRESSED);digitalWrite(12,PRESSED);digitalWrite(13,PRESSED);}// this will need a lot in the rewrite
+
+if ((elapsed_time) == RETURN_TIME){Serial.print("l");Serial.println(loop_number);
+Serial.setTimeout(60);
+Serial.print("u");for (int i = 0; i<RETURN_TIME; i++){Serial.print(OPT1_history[i]);Serial.print(",");}Serial.println();
+if (both_OPT == 1){
+  Serial.print("v");for (int i = 0; i<RETURN_TIME; i++){Serial.print(OPT2_history[i]);Serial.print(",");}Serial.println();
+Serial.setTimeout(5);
+}}
+
+clear_frame();
+frame[0][loop_number/100]=1;
+frame[1][(loop_number / 10) % 10]=1;
+frame[2][loop_number%10]=1;
+matrix.renderBitmap(frame,8,12);
+
+if (elapsed_time==END_TIME){
+for (int i = 0;i<RETURN_TIME;i++){OPT1_history[i]=0;OPT2_history[i]=0;}
+loop_number = loop_number+1;time3=millis()+1;}
+}
+
+
+if (mode == 5){//HELD button begins
+  time3=millis()+1;loop_number=0;
+
 }
 
 
