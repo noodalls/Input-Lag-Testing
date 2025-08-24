@@ -156,8 +156,8 @@ def calculate_averages():
             PT2_sum = PT2_sum + PT2_time[p]
             PT2_denom = PT2_denom + 1
     PT2_avg = round(PT2_sum / PT1_denom, 2)
-    results_summary[6] = PT1_avg
-    results_summary[7] = PT2_avg
+    results_summary[current_test][6] = PT1_avg
+    results_summary[current_test][7] = PT2_avg
 
 
 def obtain_data(_data):
@@ -496,6 +496,7 @@ def generic_keys():
         save_summary()
         save_raw()
         save_settings()
+        mode = 10
 
 
 
@@ -874,8 +875,8 @@ def draw_screen4():
                     (255, 255, 255), 1)
 ###use list
     for p in range(1000):
-        cv2.rectangle(blank_screen[3],(p,800),(p+1,850),(PT1_use[p]*128+127, 0 ,0))
-        cv2.rectangle(blank_screen[3], (p, 850), (p + 1, 900), (0, 0,PT2_use[p] * 128 + 127))
+        cv2.rectangle(blank_screen[3],(p,800),(p+1,850),(int(PT1_use[p])*128+127, 0 ,0))
+        cv2.rectangle(blank_screen[3], (p, 850), (p + 1, 900), (0, 0,int(PT2_use[p]) * 128 + 127))
 ###PT1 and PT2 results
     cv2.putText(blank_screen[3], str(PT1_avg), (1200, 40), cv2.FONT_HERSHEY_SIMPLEX, 1,(255, 0, 0), 2)
     cv2.putText(blank_screen[3], str(PT2_avg), (1200, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
