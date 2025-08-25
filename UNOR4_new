@@ -1,6 +1,17 @@
 #include "Arduino_LED_Matrix.h"
 
 ArduinoLEDMatrix matrix;
+
+uint8_t OPT1_history[1000];
+uint8_t OPT2_history[1000];
+
+int OPT1_count=0;
+int OPT2_count=0;
+long OPT1_sum=0;
+long OPT2_sum=0;
+int OPT1_avg=0;
+int OPT2_avg=0;
+
 unsigned long time1 = 0;
 unsigned long time2 = 0;
 unsigned long time3 = 0;
@@ -26,9 +37,6 @@ int OPT2_found=0;
 int margin = 1;
 int MARGIN = 4;
 int both_OPT = 0;
-
-int OPT1_history[1000];
-int OPT2_history[1000];
 
 int loop_number = 0;
 long LOOP_MAX = 999;
@@ -186,9 +194,12 @@ int mode = 0;
 int button_state = UNPRESSED;
 int button_prior = UNPRESSED;
 
+
+
 void setup() {
 
   for (int i = 0;i<RETURN_TIME;i++){OPT1_history[i]=0;OPT2_history[i]=0;}
+
 
 pinMode(13,OUTPUT);//red wire to 1P - inverted
 pinMode(12,OUTPUT);//red wire to 1P - inverted
@@ -197,12 +208,12 @@ pinMode(10,OUTPUT);//red wire to 1P - held
 pinMode(9,OUTPUT);//red wire to 1P
 pinMode(8,OUTPUT);//red wire to 1P
 
-
-digitalWrite(12,LOW);
-digitalWrite(11,LOW);
-digitalWrite(10,LOW);
-digitalWrite(9,LOW);
-digitalWrite(8,LOW);
+digitalWrite(13,PRESSED);
+digitalWrite(12,PRESSED);
+digitalWrite(11,PRESSED);
+digitalWrite(10,PRESSED);
+digitalWrite(9,UNPRESSED);
+digitalWrite(8,UNPRESSED);
   
   
 
@@ -291,6 +302,7 @@ void number_to_led(int _number, int _row){
 
 void loop() {
   time1=millis();
+  elapsed_time = (time1-time3);
   if ((time1)!=(time2)){
     button_state = digitalRead(7);
     if (digitalRead(5) == PRESSED){button_state = HELD;}
@@ -302,6 +314,9 @@ void loop() {
     if ((button_state == HELD)   && (button_prior == UNPRESSED)){mode = 5;}
     if ((button_state == HELD)   && (button_prior == HELD)){mode = 6;}
     if (loop_number > LOOP_MAX){mode = 1;}
+    if ((button_state == UNPRESSED) && (button_prior == HELD)){digitalWrite(8,UNPRESSED);digitalWrite(9,UNPRESSED);digitalWrite(12,PRESSED);digitalWrite(13,PRESSED);
+    
+    }
 
 /////////////////////////////////////////////////////////////////////////////////
 
@@ -350,25 +365,25 @@ timeb=micros();
 
 if (mode == 2){//held
 OPT1_read=analogRead(A2)/8;OPT2_read=analogRead(A5)/8;
-if ((OPT1_read < OPT1_min) && ((time1-time3) < read_time)){OPT1_min = OPT1_read;}
-if ((OPT2_read < OPT2_min) && ((time1-time3) < read_time)){OPT2_min = OPT2_read;}
-if ((OPT1_read > OPT1_max) && ((time1-time3) < read_time)){OPT1_max = OPT1_read;}
-if ((OPT2_read > OPT2_max) && ((time1-time3) < read_time)){OPT2_max = OPT2_read;}
+if ((OPT1_read < OPT1_min) && ((elapsed_time) < read_time)){OPT1_min = OPT1_read;}
+if ((OPT2_read < OPT2_min) && ((elapsed_time) < read_time)){OPT2_min = OPT2_read;}
+if ((OPT1_read > OPT1_max) && ((elapsed_time) < read_time)){OPT1_max = OPT1_read;}
+if ((OPT2_read > OPT2_max) && ((elapsed_time) < read_time)){OPT2_max = OPT2_read;}
 
-if ((time1-time3) < RETURN_TIME){OPT1_history[time1-time3]=OPT1_read;OPT2_history[time1-time3]=OPT2_read;}
+if ((elapsed_time) < RETURN_TIME){OPT1_history[elapsed_time]=OPT1_read;OPT2_history[elapsed_time]=OPT2_read;}
 
-if ((time1-time3) == read_time){digitalWrite(8,PRESSED);digitalWrite(9,PRESSED);digitalWrite(12,UNPRESSED);digitalWrite(13,UNPRESSED);}// this will need a lot in the rewrite
+if ((elapsed_time) == read_time){digitalWrite(8,PRESSED);digitalWrite(9,PRESSED);digitalWrite(12,UNPRESSED);digitalWrite(13,UNPRESSED);}// this will need a lot in the rewrite
 
-if (((time1-time3)>read_time) && (OPT1_read > OPT1_max+margin) && (greater_than == 1) && (OPT1_found==0)){OPT1_time = time1-time3-read_time;OPT1_found=OPT1_read;}
-if (((time1-time3)>read_time) && (OPT1_read < OPT1_min-margin) && (less_than == 1) && (OPT1_found==0)){OPT1_time = time1-time3-read_time;OPT1_found=OPT1_read;}
-if (((time1-time3)>read_time) && (OPT2_read > OPT2_max+margin) && (greater_than == 1) && (OPT2_found==0)){OPT2_time = time1-time3-read_time;OPT2_found=OPT2_read;}
-if (((time1-time3)>read_time) && (OPT2_read < OPT2_min-margin) && (less_than == 1) && (OPT2_found==0)){OPT2_time = time1-time3-read_time;OPT2_found=OPT2_read;}
+if (((elapsed_time)>read_time) && (OPT1_read > OPT1_max+margin) && (greater_than == 1) && (OPT1_found==0)){OPT1_time = elapsed_time-read_time;OPT1_found=OPT1_read;}
+if (((elapsed_time)>read_time) && (OPT1_read < OPT1_min-margin) && (less_than == 1) && (OPT1_found==0)){OPT1_time = elapsed_time-read_time;OPT1_found=OPT1_read;}
+if (((elapsed_time)>read_time) && (OPT2_read > OPT2_max+margin) && (greater_than == 1) && (OPT2_found==0)){OPT2_time = elapsed_time-read_time;OPT2_found=OPT2_read;}
+if (((elapsed_time)>read_time) && (OPT2_read < OPT2_min-margin) && (less_than == 1) && (OPT2_found==0)){OPT2_time = elapsed_time-read_time;OPT2_found=OPT2_read;}
 clear_frame();
 if (OPT1_time !=0){number_to_led(OPT1_found,0);}
 if (OPT1_time == 0){number_to_led(OPT1_read,0);}
 if (less_than == 1){number_to_led(OPT1_min,2);}
 if (greater_than==1){number_to_led(OPT1_max,4);}
-if (OPT1_time == 0){number_to_led(time1-time3-read_time,6);}
+if (OPT1_time == 0){number_to_led(elapsed_time-read_time,6);}
 if (OPT1_time !=0){number_to_led(OPT1_time,6);}
 
 matrix.renderBitmap(frame,8,12);
@@ -434,37 +449,69 @@ OPT1_read=analogRead(A2)/8;OPT2_read=analogRead(A5)/8;
 OPT1_history[0]=OPT1_read;OPT2_history[0]=OPT2_read;
 }
 
+
+
+//////////////////////////////////////////////////////////////////////////////////
 if (mode == 6){//HELD button continues
-  //Serial.println(time1-time3);
-elapsed_time = (time1-time3);// consider putting this in main loop
+
 OPT1_read=analogRead(A2)/8;OPT2_read=analogRead(A5)/8;
 OPT1_history[elapsed_time]=OPT1_read;OPT2_history[elapsed_time]=OPT2_read;
 
-if ((elapsed_time) == read_time){digitalWrite(8,PRESSED);digitalWrite(9,PRESSED);digitalWrite(12,UNPRESSED);digitalWrite(13,UNPRESSED);}// this will need a lot in the rewrite
-if ((elapsed_time) == RETURN_TIME){digitalWrite(8,UNPRESSED);digitalWrite(9,UNPRESSED);digitalWrite(12,PRESSED);digitalWrite(13,PRESSED);}// this will need a lot in the rewrite
 
-if ((elapsed_time) == RETURN_TIME){Serial.print("l");Serial.println(loop_number);
-Serial.setTimeout(60);
-Serial.print("u");for (int i = 0; i<RETURN_TIME; i++){Serial.print(OPT1_history[i]);Serial.print(",");}Serial.println();
-if (both_OPT == 1){
-  Serial.print("v");for (int i = 0; i<RETURN_TIME; i++){Serial.print(OPT2_history[i]);Serial.print(",");}Serial.println();
-Serial.setTimeout(5);
-}}
+if ((elapsed_time) == read_time){digitalWrite(8,PRESSED);digitalWrite(9,PRESSED);digitalWrite(12,UNPRESSED);digitalWrite(13,UNPRESSED);}
+
+
+if ((elapsed_time) == RETURN_TIME){digitalWrite(8,UNPRESSED);digitalWrite(9,UNPRESSED);digitalWrite(12,PRESSED);digitalWrite(13,PRESSED);
+
+OPT1_min=128;OPT1_max=0;OPT2_min=128;OPT2_max=0;
+
+for (int i =0;i<read_time;i++){
+  if (OPT1_history[i] < OPT1_min){OPT1_min = OPT1_history[i];}
+  if (OPT1_history[i] > OPT1_max){OPT1_max = OPT1_history[i];}
+  if (OPT2_history[i] < OPT2_min){OPT2_min = OPT2_history[i];}
+  if (OPT2_history[i] > OPT2_max){OPT2_max = OPT2_history[i];}
+}
+
+for (int i = read_time;i<RETURN_TIME;i++){
+if (((OPT1_history[i]>OPT1_max+margin) && (greater_than == 1)) ||  ((OPT1_history[i]<OPT1_min-margin) && (less_than == 1)))
+{OPT1_sum=OPT1_sum+i-read_time;OPT1_count++;OPT1_avg=OPT1_sum/OPT1_count;break;}}
+
+for (int i = read_time;i<RETURN_TIME;i++){
+if (((OPT2_history[i]>OPT2_max+margin) && (greater_than == 1)) ||  ((OPT2_history[i]<OPT2_min-margin) && (less_than == 1)))
+{OPT2_sum=OPT2_sum+i-read_time;OPT2_count++;OPT2_avg=OPT2_sum/OPT2_count;break;}}
 
 clear_frame();
-frame[0][loop_number/100]=1;
-frame[1][(loop_number / 10) % 10]=1;
-frame[2][loop_number%10]=1;
+number_to_led(OPT1_avg,0);
+number_to_led(OPT2_avg,4);
+number_to_led(OPT1_count,2);
+number_to_led(OPT2_count,6);
 matrix.renderBitmap(frame,8,12);
+  
+Serial.print("l");Serial.println(loop_number);
+Serial.setTimeout(60);
+Serial.print("u");for (int i = 0; i<RETURN_TIME; i++){Serial.print(OPT1_history[i]);Serial.print(",");}Serial.println();
+Serial.print("v");for (int i = 0; i<RETURN_TIME; i++){Serial.print(OPT2_history[i]);Serial.print(",");}Serial.println();
+Serial.setTimeout(5);
+}
 
-if (elapsed_time==END_TIME){
+
+
+if (elapsed_time==END_TIME){  
 for (int i = 0;i<RETURN_TIME;i++){OPT1_history[i]=0;OPT2_history[i]=0;}
-loop_number = loop_number+1;time3=millis()+1;}
+
+loop_number = loop_number+1;
+
+//clear_frame();
+//frame[0][loop_number/100]=1;frame[1][(loop_number / 10) % 10]=1;frame[2][loop_number%10]=1;matrix.renderBitmap(frame,8,12);// this will need a lot in the rewrite
+time3=millis()+1;
+
+}
 }
 
 
 if (mode == 5){//HELD button begins
-  time3=millis()+1;loop_number=0;
+  time3=millis()+1;
+  //loop_number=0;
 
 }
 
