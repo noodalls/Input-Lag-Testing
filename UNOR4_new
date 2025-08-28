@@ -12,6 +12,8 @@ long OPT1_sum=0;
 long OPT2_sum=0;
 int OPT1_avg=0;
 int OPT2_avg=0;
+int Transmit_results = 1;
+
 
 unsigned long time1 = 0;
 unsigned long time2 = 0;
@@ -234,6 +236,7 @@ greater_than = EEPROM.read(2);
 both_OPT = EEPROM.read(3);
 margin = EEPROM.read(4);
 MARGIN = EEPROM.read(5);
+Transmit_results = EEPROM.read(6);
 
 LOOP_MAX = EEPROM_READ_PAIR(10);
 read_time = EEPROM_READ_PAIR(20);
@@ -249,6 +252,7 @@ EEPROM.update(2,greater_than);
 EEPROM.update(3,both_OPT);
 EEPROM.update(4,margin);
 EEPROM.update(5,MARGIN);
+EEPROM.update(6,Transmit_results);
 EEPROM_UPDATE_PAIR(10, LOOP_MAX);
 EEPROM_UPDATE_PAIR(20, read_time);
 EEPROM_UPDATE_PAIR(30, RETURN_TIME);
@@ -430,8 +434,8 @@ if (abc == 'M'){MARGIN=Serial.parseInt();Serial.print("M");Serial.println(MARGIN
 if (abc == '+'){greater_than = 1; less_than = 0;Serial.println("+");EEPROM.update(1,less_than);EEPROM.update(2,greater_than);}
 if (abc == '-'){less_than = 1; greater_than = 0;Serial.println("-");EEPROM.update(1,less_than);EEPROM.update(2,greater_than);}
 if (abc == '='){greater_than = 1; less_than = 1;Serial.println("=");EEPROM.update(1,less_than);EEPROM.update(2,greater_than);}
-
-
+if (abc == 'T'){Transmit_results = 1;Serial.println("T");EEPROM.update(6,Transmit_results);}
+if (abc == 't'){Transmit_results = 0;Serial.println("t");EEPROM.update(6,Transmit_results);}
 
 
 }//much more to come here!
@@ -585,11 +589,12 @@ number_to_led(OPT1_time,6);
 matrix.renderBitmap(frame,8,12);
   
 Serial.print("l");Serial.println(loop_number);
+if (Transmit_results == 1){
 Serial.setTimeout(60);
 Serial.print("u");for (int i = 0; i<RETURN_TIME; i++){Serial.print(OPT1_history[i]);Serial.print(",");}Serial.println();
 Serial.print("v");for (int i = 0; i<RETURN_TIME; i++){Serial.print(OPT2_history[i]);Serial.print(",");}Serial.println();
 Serial.setTimeout(5);
-}
+}}
 
 
 
