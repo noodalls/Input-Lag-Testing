@@ -389,7 +389,8 @@ void loop() {
     if ((button_state == INPUT_PRESSED)   && (button_prior == INPUT_UNPRESSED)){mode = 4;}
     if ((button_state == HELD)   && (button_prior == INPUT_UNPRESSED)){mode = 5;}
     if ((button_state == HELD)   && (button_prior == HELD)){mode = 6;}
-    if (loop_number > LOOP_MAX){mode = 1;}
+    if (loop_number > LOOP_MAX-1){mode = 1;}
+    
     if ((button_state == INPUT_UNPRESSED) && (button_prior == HELD)){digitalWrite(8,OUTPUT_UNPRESSED);digitalWrite(9,OUTPUT_UNPRESSED);digitalWrite(12,OUTPUT_PRESSED);digitalWrite(13,OUTPUT_PRESSED);
     if (OPT1_avg > 99){matrix.renderBitmap(digits[OPT1_avg/100],8,12);delay(250);clear_frame();matrix.renderBitmap(frame,8,12);delay(50);}
 matrix.renderBitmap(digits[(OPT1_avg%100)/10],8,12);delay(250);clear_frame();matrix.renderBitmap(frame,8,12);delay(50);
