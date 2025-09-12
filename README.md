@@ -7,9 +7,9 @@ What I have tried to do is to use an off the shelf Arduino (R4 Uno Wifi - https:
 
 Attached to this is one or two photo transistors PCBs. These are fairly simple builds. I have uploaded my gerber files to oshpark. 
 
-https://oshpark.com/orders/mVjJh4Cv $0.60
+[https://oshpark.com/orders/mVjJh4Cv](https://oshpark.com/shared_projects/BHKJZvqN) $0.60
 
-https://oshpark.com/orders/arRn4V5Q $0.60
+[https://oshpark.com/orders/arRn4V5Q](https://oshpark.com/shared_projects/4ZoogtEB) $0.60
 
 These just need some header pin, I personally use right angled 3P header pin $0.50.
 
