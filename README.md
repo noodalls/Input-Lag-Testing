@@ -18,9 +18,9 @@ Attached to this is a simple PCB. The gerber files are here.
 
 https://oshpark.com/shared_projects/lQj04fDf
 
-This needs four buttons, two 15P female header pin and one 2x10 header pin soldered to it. 
+This needs four buttons, two 15P female header pin and one 2x10 female header pin soldered to it. 
 
-This connect directly to the arduino and also a brook UFB (or similar). 
+This connects directly to the arduino and also a brook UFB (or similar). 
 
 Next is the phototransistors. I will make the PCBS available once more.
 
@@ -47,8 +47,8 @@ The buttons are left, right, confirm and cancel. Confirm button will enter the m
 The modes are 
 - reset = this will remove all data. Generally reset with the button on the arduino after this to fully wipe the current options
 - test = this will run a single test. Results will be displayed on the OLED.
-- test multiple = this will run a set number of tests in a row
-- compare P1 P2 = this actually does the same as test multiple, however the display focuses on when the phototransistors displayed results
+- test multiple = this will run a set number of tests in a row. Results are displayed after each test. 
+- compare P1 P2 = this actually does the same as test multiple, however the display focuses on when the phototransistors responded. 
 - OPT1_history = will display values read by the phototransistor for the last trial. Pushing confirm again will actually alter the result for the most recent test. 
 - OPT2_history = same, but for the other phototransistor
 - LOG = this will show all the results. Pushing the confirm button again will select that trial if you needed to rerecord.
