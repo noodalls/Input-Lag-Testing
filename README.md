@@ -60,7 +60,13 @@ The modes are
   Pressing enter will save the current data, including a summary of all the phototransistor values, all of the results, a screenshot of the results and also update a .csv file with all the results collated. 
 
 
+To finish, I use a 3D printed jig which interfaces with a standard ruler (300mm x 4mm x 27mm) with M3 screws holding it in place (M8 at the top). 
 
+https://www.tinkercad.com/things/iO7gp0xDDsG-phototransistor-jig-inzone-m3?sharecode=JK81W8gAVO4LallxmTrtQG838HGUcDdwp9wht1RR6cU
+
+I also have a sheet to make it easy to work out how far down the screen the phototransistor is. 
+
+https://docs.google.com/spreadsheets/d/1O-7BZr7TG51Z4-GlDccAVijA5lLIsb9UZGs8u0alwic/edit?usp=sharing
 
 
 
