@@ -1,0 +1,1592 @@
+#
+import serial
+import numpy as np
+import cv2
+import time
+import os
+
+current_value = 0
+current_x = 0
+
+screen_x_position = 0
+screen_y_position = 0
+k=0
+jump=1
+port_list = ['COM1','COM2','COM3','COM4','COM5','COM6','COM7','COM8','COM9','COM10','COM11','COM12','COM13','COM14','COM15','COM16','COM17','COM18','COM19','COM20']
+port_list_cursor = 3
+port_connected = 0
+update_required = 1
+row_offset = 0
+row_clicked = 1
+
+lb_down = 0
+mb_down = 0
+rb_down = 0
+
+P1_average_frames=0
+P2_average_frames=0
+P1_average_ms=0
+P2_average_ms=0
+P12_average_frames=0
+P12_average_ms=0
+
+PT1_avg = 0.0
+PT2_avg = 0.0
+
+calculate_mode = 1
+trial_number=0
+TRIAL_MAX=999
+over_under=1
+OVER_UNDER=4
+greater_than=1
+less_than = 1
+read_time=500
+REPORT_TIME=1000
+query_time = 600
+QUIT_TIME = 1200
+SYNCHRONISED = 0
+
+ALPHABET = ['A','B','C','D','E','F','G','H','I','J','K','L','M']
+alphabet = ['a','b','c','d','e','f','g','h','i','j','k','l','m']
+
+OUTPUT_ON_TIME = [-5,100,-5,-5,-5,-5,-5,-5,-5,-5]
+output_off_time = [0,200,0,0,0,0,0,0,0,0]
+
+button_name_list = ['U','D','L','R','1P','2P','3P','1K','2K','3K']
+
+options = [[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],[''],]
+
+options_screen = 0
+## make this try, and then add backup file!
+try:
+    f=open("Results summary.csv", "r")
+    results_summary=f.readlines()
+    f.close()
+    for p in range(len(results_summary)):
+        results_summary[p] = results_summary[p].replace('\n', '')
+        results_summary[p] = results_summary[p].split(",")
+except:
+    ()
+    results_summary=[[],[]]
+    results_summary[0] = ['Test', 'System', 'Game', 'Method', 'Final 1 (ms)', 'Final 2 (ms)', 'Read 1 (ms)', 'Read 2 (ms)', 'Trials used 1', 'Trials used 2', 'Screen', 'Resolution', 'Screen settings', 'Controller 1', 'Converter 1', 'Assessment 1', 'Controller 2', 'Converter 2', 'Assessment 2', 'In game vsync settings', 'System settings', 'Window settings', 'Nvidia settings', 'Power settings', 'Other settings', 'Upper position', 'Lower position', 'Offset 1(ms)', 'Offset 2(ms)', 'Notes', 'Notes b', 'Stage', 'Trials total a', 'Trials total b', 'Screen refresh a (hz)', 'Screen draw time a (ms)', 'Top 1a (ms)', 'Bottom 1a (ms)', 'Top 2a (ms)', 'Bottom 2a (ms)', 'Screen refresh b (hz)', 'Screen draw time b (ms)', 'Top 1b (ms)', 'Bottom 1b (ms)', 'Read 1 wins', 'Read 2 wins', 'Read 12 tied', 'Read 12 time', 'Collection', 'Patch', 'Use0', 'Use1', 'Use2', 'Use3', 'Use4', 'Use5', 'Use6', 'Use7', 'Use8', 'Use9', 'Use10', 'Use11', 'Use12', 'Use13', 'Use14', 'Use15', 'Use16', 'Use17', 'Use18', 'Use19', 'Use20', 'Use21', 'Use22', 'Use23', 'Use24', 'Use25', 'Use26', 'Use27', 'Use28', 'Use29', 'Use30', 'Use31', 'Use32', 'Use33', 'Use34', 'Use35', 'Use36', 'Use37', 'Use38', 'Use39', 'Use40', 'Use41', 'Use42', 'Use43', 'Use44', 'Use45', 'Use46', 'Use47', 'Use48', 'Use49', 'Finalised', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']
+    results_summary[1] = ['1', 'PC3080', 'Street Fighter 6', 'Phototransistor - known hz', '', '', '', '', '', '', 'Inzone M3', '1080P', '', 'Brook UFB Gen5X', '', 'P1 command history top', 'Brook UFB Gen5X', '', 'P1 command history bottom', 'VSync off IDR on', '', 'Borderless Windowed', 'Low Latency Mode Ultra Max Frame Rate Off Monitor Technology GSync Compatible Vertical Sync Use the 3D application setting', '', '', '', '', '0', '0', 'Low latency + boost', '', '', '50', '50', '240', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '1.4.0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1']
+
+current_test = len(results_summary)-1
+
+PT1=np.zeros((1000000), np.int16)
+PT2=np.zeros((1000000), np.int16)
+
+
+PT1_use=np.zeros((1000), np.int16)
+PT1_value=np.zeros((1000), np.int16)
+PT1_min=np.zeros((1000), np.int16)
+PT1_max=np.zeros((1000), np.int16)
+PT1_time=np.zeros((1000), np.int16)
+
+PT2_use=np.zeros((1000), np.int16)
+PT2_value=np.zeros((1000), np.int16)
+PT2_min=np.zeros((1000), np.int16)
+PT2_max=np.zeros((1000), np.int16)
+PT2_time=np.zeros((1000), np.int16)
+
+
+def calculate_min_max_PT1(_trial_number):
+    global PT1_value
+    global PT1_min
+    global PT1_max
+    global PT1_time
+
+    PT1_min[_trial_number] = 128
+    PT1_max[_trial_number] = 0
+    PT1_value[_trial_number] = 0
+    PT1_time[_trial_number] = 0
+
+    v = range(0, read_time, 1)
+    for p in v:
+        if PT1_max[_trial_number] < PT1[_trial_number * 1000 + p]:
+            PT1_max[_trial_number] = PT1[_trial_number * 1000 + p]
+        if PT1_min[_trial_number] > PT1[_trial_number * 1000 + p]:
+            PT1_min[_trial_number] = PT1[_trial_number * 1000 + p]
+
+    v = range(query_time, REPORT_TIME, 1)
+    for p in v:
+        if (PT1_value[_trial_number] == 0) and (greater_than == 1) and (PT1[_trial_number * 1000 + p] > PT1_max[_trial_number] + over_under):
+            PT1_time[_trial_number] = p - read_time
+            PT1_value[_trial_number] = PT1[_trial_number * 1000 + p]
+        if (PT1_value[_trial_number] == 0) and (less_than == 1) and (PT1[_trial_number * 1000 + p] < PT1_min[_trial_number] - over_under):
+            PT1_time[_trial_number] = p - read_time
+            PT1_value[_trial_number] = PT1[_trial_number * 1000 + p]
+
+
+
+def calculate_min_max_PT2(_trial_number):
+    global PT2_value
+    global PT2_min
+    global PT2_max
+    global PT2_time
+
+    PT2_min[_trial_number] = 128
+    PT2_max[_trial_number] = 0
+    PT2_value[_trial_number] = 0
+    PT2_time[_trial_number] = 0
+
+    v = range(0, read_time, 1)
+    for p in v:
+        if PT2_max[_trial_number] < PT2[_trial_number * 1000 + p]:
+            PT2_max[_trial_number] = PT2[_trial_number * 1000 + p]
+        if PT2_min[_trial_number] > PT2[_trial_number * 1000 + p]:
+            PT2_min[_trial_number] = PT2[_trial_number * 1000 + p]
+
+    v = range(query_time, REPORT_TIME, 1)
+    for p in v:
+        if (PT2_value[_trial_number] == 0) and (greater_than == 1) and (PT2[_trial_number * 1000 + p] > PT2_max[_trial_number] + over_under):
+            PT2_time[_trial_number] = p - read_time
+            PT2_value[_trial_number] = PT2[_trial_number * 1000 + p]
+        if (PT2_value[_trial_number] == 0) and (less_than == 1) and (PT2[_trial_number * 1000 + p] < PT2_min[_trial_number] - over_under):
+            PT2_time[_trial_number] = p - read_time
+            PT2_value[_trial_number] = PT2[_trial_number * 1000 + p]
+
+
+def calculate_min_max_all():#not ever used?
+    for p in range(TRIAL_MAX):
+        calculate_min_max_PT1(p)
+        calculate_min_max_PT2(p)
+
+
+def calculate_averages():
+    global results_summary
+    global PT1_avg
+    global PT2_avg
+
+    #upper position 25
+    #lower position 26
+    #screen refresh 34
+    #total trials 1 32
+    #total trials 2 33
+
+    PT1_avg = 0.0
+    PT1_sum = 0
+    PT1_denom =0
+    for p in range(1000):
+        if PT1_use[p] == 1:
+            results_summary[current_test][32] = p+1
+
+            PT1_sum = PT1_sum + PT1_time[p]
+            PT1_denom = PT1_denom + 1
+    if PT1_denom > 0:
+        PT1_avg = round(PT1_sum / PT1_denom, 2)
+        results_summary[current_test][8] = PT1_denom
+#[8][9]
+
+    PT2_avg = 0.0
+    PT2_sum = 0
+    PT2_denom = 0
+    for p in range(1000):
+        if PT2_use[p] == 1:
+            results_summary[current_test][33] = p+1
+            PT2_sum = PT2_sum + PT2_time[p]
+            PT2_denom = PT2_denom + 1
+    if PT2_denom>0:
+        PT2_avg = round(PT2_sum / PT1_denom, 2)
+        results_summary[current_test][9] = PT2_denom
+
+
+    results_summary[current_test][6] = PT1_avg
+    results_summary[current_test][7] = PT2_avg
+
+    results_summary[current_test][6] = str(round(PT1_avg,2))#read1(ms)
+    results_summary[current_test][7] = str(round(PT2_avg,2))#read2(ms)
+    if results_summary[current_test][25]=='':
+        results_summary[current_test][25]=25
+        current_results_in_options[25] = int(results_summary[current_test][25])
+    upper_ratio = int(results_summary[current_test][25]) / 100
+
+    if results_summary[current_test][26]=='':
+        results_summary[current_test][26] = 75
+        current_results_in_options[26] = int(results_summary[current_test][26])
+    lower_ratio = int(results_summary[current_test][26]) / 100
+
+    #print (str(upper_ratio) + "," + str(lower_ratio))
+
+    #calculate_mode = 1  # calculate via screen hz## add divide by zero protection
+    if upper_ratio != lower_ratio:
+        results_summary[current_test][41] = str(round(((PT2_avg - PT1_avg) / (lower_ratio - upper_ratio)), 2))#Screen draw time b (ms)
+        if (PT2_avg-PT1_avg !=0):
+            results_summary[current_test][40] = str(round(1000 / ((PT2_avg - PT1_avg) / (lower_ratio - upper_ratio)), 2))#Screen refresh b (hz)
+        results_summary[current_test][42] = str(round(PT1_avg - float(results_summary[current_test][41]) * upper_ratio,2))#Top 1b (ms)
+        results_summary[current_test][43] = str(round(float(results_summary[current_test][42])+float(results_summary[current_test][41]),2))#Bottom 1b (ms)
+
+    results_summary[current_test][34] = str(float(results_summary[current_test][34])) #Screen refresh a (hz)
+    results_summary[current_test][35] = str(round(1000 / float(results_summary[current_test][34]), 2)) #Screen draw time a (ms)
+
+    results_summary[current_test][36] = str(round(PT1_avg - (float(results_summary[current_test][35]) * upper_ratio), 2))  ####"Top predicted 1(ms)"
+    results_summary[current_test][37] = str(round(PT1_avg + float(results_summary[current_test][35]) - (float(results_summary[current_test][35]) * upper_ratio), 2))  # "Bottom predicted 1(ms)"
+    results_summary[current_test][38] = str(round(PT2_avg - (float(results_summary[current_test][35]) * lower_ratio), 2))  ##"Top predicted 2(ms)"
+    results_summary[current_test][39] = str(round(PT2_avg + float(results_summary[current_test][35]) - (float(results_summary[current_test][35]) * lower_ratio), 2))  ##"Bottom predicted 2(ms)"
+
+    if calculate_mode == 0:
+        results_summary[current_test][4] = str(round(float(results_summary[current_test][42]) + float(results_summary[current_test][27]), 2))
+        results_summary[current_test][5] = str(round(float(results_summary[current_test][42]) + float(results_summary[current_test][28]), 2))
+        results_summary[current_test][3] = "Phototransistor - measured"
+    if calculate_mode == 1:
+        results_summary[current_test][4] = str(round(float(results_summary[current_test][36]) + float(results_summary[current_test][27]), 2))
+        results_summary[current_test][5] = str(round(float(results_summary[current_test][38]) + float(results_summary[current_test][28]), 2))
+        results_summary[current_test][3] = "Phototransistor - known hz"
+
+    #44 P1 wins
+    #45 P2 wins
+    #46 P12 draw
+    results_summary[current_test][44]=0
+    results_summary[current_test][45]=0
+    results_summary[current_test][46]=0
+
+    for p in range(1000):
+        if PT1_use[p]==1 and PT2_use[p]==1 and (int(PT2_time[p]) - int(PT1_time[p])) > OVER_UNDER:
+            results_summary[current_test][44]=results_summary[current_test][44]+1
+        if PT1_use[p] == 1 and PT2_use[p] == 1 and (int(PT1_time[p]) - int(PT2_time[p])) > OVER_UNDER:
+            results_summary[current_test][45] = results_summary[current_test][45] + 1
+        if PT1_use[p] == 1 and PT2_use[p] == 1 and (int(PT2_time[p]) - int(PT1_time[p])) < OVER_UNDER and (int(PT1_time[p]) - int(PT2_time[p])) < OVER_UNDER:
+            results_summary[current_test][46] = results_summary[current_test][46]+1
+
+
+def obtain_data(_data):
+    global data
+    global trial_number
+    global TRIAL_MAX
+    global read_time
+    global REPORT_TIME
+    global over_under
+    global OVER_UNDER
+    global query_time
+    global QUIT_TIME
+    global greater_than
+    global less_than
+    global PT1
+    global PT2
+    global SYNCHRONISED
+    global OUTPUT_ON_TIME
+    global output_off_time
+
+    _data = str(_data)
+    _data = _data.replace("b'", "")
+    _data = _data.replace("'", "")
+    _data = _data.replace("\\r", "").replace("\\n", "")
+
+    if _data != "":
+
+        print(str(_data))
+
+        v=range(0,10,1)
+        for p in v:
+            if _data[0] == ALPHABET[p]:
+                OUTPUT_ON_TIME[p] = int(_data[1:])
+
+            if _data[0] == alphabet[p]:
+                output_off_time[p] = int(_data[1:])
+
+        if _data[0] == 't':
+            trial_number = int(_data[1:])
+
+        if _data[0] == 'T':
+            TRIAL_MAX = int(_data[1:])
+
+        if _data[0] == 'o':
+            over_under = int(_data[1:])
+        if _data[0] == 'O':
+            OVER_UNDER = int(_data[1:])
+
+        if _data[0] == 'r':
+            read_time = int(_data[1:])
+            #calculate_min_max_all()
+            #calculate_averages()
+
+        if _data[0] == 'R':
+            REPORT_TIME = int(_data[1:])
+            #calculate_min_max_all()
+            #calculate_averages()
+
+        if _data[0] == 'q':
+            query_time = int(_data[1:])
+            #calculate_min_max_all()
+            #calculate_averages()
+
+
+        if _data[0] == 'Q':
+            QUIT_TIME = int(_data[1:])
+            #calculate_min_max_all()
+            #calculate_averages()
+
+
+        if _data[0] == 'o':
+            over_under = int(_data[1:])
+            #calculate_min_max_all()
+            #calculate_averages()
+
+        if _data[0] == 'O':
+            OVER_UNDER = int(_data[1:])
+            #calculate_averages()
+
+
+        if _data[0] == '+':
+            greater_than = int(_data[1:])
+            #calculate_min_max_all()
+            #calculate_averages()
+
+        if _data[0] == '-':
+            less_than = int(_data[1:])
+            #calculate_min_max_all()
+            #calculate_averages()
+
+
+
+
+        if _data[0] == 'u':
+            _data = _data[1:]
+            data_array = _data.split(",")
+            data_array.pop()  # include this otherwise last comma causes empty 501 entry
+            v = range(0, len(data_array), 1)
+            for p in v:
+                PT1[trial_number * 1000 + p] = data_array[p]
+
+            PT1_use[trial_number]=1
+            calculate_min_max_PT1(trial_number)
+            #calculate_averages()
+
+        if _data[0] == 'v':
+            _data = _data[1:]
+            data_array = _data.split(",")
+            data_array.pop()  # include this otherwise last comma causes empty 501 entry
+            v = range(0, len(data_array), 1)
+            for p in v:
+                PT2[trial_number * 1000 + p] = data_array[p]
+            PT2_use[trial_number]=1
+            calculate_min_max_PT2(trial_number)
+            calculate_averages()
+
+        if _data[0] == 'S':
+            SYNCHRONISED = 1
+
+if int(results_summary[current_test][100]) == 1:
+    results_summary.append(results_summary[current_test])
+    print(len(results_summary))
+    current_test = len(results_summary)-1
+    my_str = str(current_test).zfill(4)
+    try:
+        os.mkdir(my_str)
+    except:
+        ()
+    try:
+        f = open(my_str + "\\" + my_str + ".csv", "w")
+        v=range(0,1000000,1)
+        for p in v:
+            f.write("0,0")
+            f.write("\n")
+        f.close()
+        results_summary[current_test][0]=current_test
+
+
+        list_to_empty = [4, 5, 6, 7, 8, 9, 32, 33, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+        v = range(0, len(list_to_empty), 1)
+        for p in v:
+            results_summary[current_test][list_to_empty[p]] = ''
+
+    except:
+        ()
+
+print(str(current_test))
+if int(results_summary[current_test][100]) == 0:
+# try:
+    my_str = str(current_test).zfill(4)
+    f = open(my_str + "\\" + my_str + ".csv", "r")
+    file_results = f.readlines()
+    f.close()
+
+    v=range(0,len(file_results),1)
+    for p in v:
+        file_results[p]=file_results[p].replace('\n','')
+        file_results[p] = file_results[p].split(",")
+        PT1[p]=int(file_results[p][0])
+
+        PT2[p]=int(file_results[p][1])
+    # except:
+    #     print("Something went wrong getting previous results")
+
+    try:
+        my_str = str(current_test).zfill(4)
+        f = open(my_str + "\\" + my_str + "_settings.txt", "r")
+
+        file_settings = f.readlines()
+        f.close()
+        PT1_use   = file_settings[0].replace('\n','').split(",")
+        PT1_value = file_settings[1].replace('\n', '').split(",")
+        PT1_min   = file_settings[2].replace('\n', '').split(",")
+        PT1_max   = file_settings[3].replace('\n', '').split(",")
+        PT1_time  = file_settings[4].replace('\n', '').split(",")
+        PT2_use   = file_settings[5].replace('\n','').split(",")
+        PT2_value = file_settings[6].replace('\n', '').split(",")
+        PT2_min   = file_settings[7].replace('\n', '').split(",")
+        PT2_max   = file_settings[8].replace('\n', '').split(",")
+        PT2_time  = file_settings[9].replace('\n', '').split(",")
+
+        for p in range(1000):
+            PT1_use[p]=int(PT1_use[p])
+            PT1_value[p] = int(PT1_value[p])
+            PT1_min[p] = int(PT1_min[p])
+            PT1_max[p] = int(PT1_max[p])
+            PT1_time[p] = int(PT1_time[p])
+            PT2_use[p] = int(PT2_use[p])
+            PT2_value[p] = int(PT2_value[p])
+            PT2_min[p] = int(PT2_min[p])
+            PT2_max[p] = int(PT2_max[p])
+            PT2_time[p] = int(PT2_time[p])
+
+        print("Got all the settings!")
+    except:
+        print("Something went wrong getting settings")
+
+results_summary[current_test][100]= 0
+
+v=range(1,len(results_summary),1)
+for p in v:
+    y=range(50,100,1)
+    for q in y:
+        if results_summary[p][q] == 'True':
+            results_summary[p][q] = 1
+        if results_summary[p][q] == 'False':
+            results_summary[p][q]=0
+        #print(str(p)+","+str(q))
+        results_summary[p][q]=int(results_summary[p][q])
+
+def write_values(_data_set):
+    v=range(0,len(_data_set),1)
+    for p in v:
+        f.write(str(_data_set[p]))
+        f.write(",")
+    f.write("\n")
+
+
+results_summary[current_test][3] = 'Phototransistor - known hz'
+
+v=range(1,len(results_summary),1)
+for p in v:
+    y=range(0,50,1)
+    for q in y:
+        if results_summary[p][q] not in options[q]:
+            options[q].append(results_summary[p][q])
+
+options[25]=['']
+options[26]=['']
+for p in range(1,100):
+    options[25].append(str(p))
+    options[26].append(str(p))
+
+current_results_in_options=[]
+v=range(0,50,1)#make this 60 soon
+for p in v:
+    current_results_in_options.append(options[p].index(results_summary[current_test][p]))
+    # current_results_in_options[25]=''
+    # current_results_in_options[26]=''
+    # for p in range(1,100):
+    #     current_results_in_options[25].append(int(p))
+    #     current_results_in_options[25].append(int(p))
+
+results_summary[current_test][0]=str(results_summary[current_test][0])
+
+try:
+    arduino = serial.Serial(port=port_list[port_list_cursor],   baudrate=115200, timeout=.1)
+    port_connected = 1
+    arduino.write(bytes('S', 'utf-8'))
+    time.sleep(0.30)
+    mode = 4
+except:
+    port_connected = 0
+    mode = 0
+
+
+
+
+blank_screen=np.zeros((5,1080,1920,3),dtype='uint8')
+
+
+def show_screen(_screen_title,_screen,_click_event,):
+    global k
+
+    cv2.namedWindow(_screen_title, cv2.WINDOW_NORMAL)
+    cv2.setWindowProperty(_screen_title, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    cv2.setWindowProperty(_screen_title, cv2.WND_PROP_TOPMOST, 1)
+    cv2.moveWindow(_screen_title,screen_x_position,screen_y_position)# use this line for 3 monitor setup
+    cv2.imshow(_screen_title, _screen)
+    cv2.setMouseCallback(_screen_title, _click_event)
+    k = cv2.waitKey(33)
+
+
+def save_settings():
+    my_str = str(current_test).zfill(4)
+    f = open(my_str + "\\" + my_str + "_settings.txt", "w")
+    for p in range(1000):
+        f.write(str(PT1_use[p])+",")
+    f.write("\n")
+    for p in range(1000):
+        f.write(str(PT1_value[p])+",")
+    f.write("\n")
+    for p in range(1000):
+        f.write(str(PT1_min[p])+",")
+    f.write("\n")
+    for p in range(1000):
+        f.write(str(PT1_max[p])+",")
+    f.write("\n")
+    for p in range(1000):
+        f.write(str(PT1_time[p])+",")
+    f.write("\n")
+    for p in range(1000):
+        f.write(str(PT2_use[p])+",")
+    f.write("\n")
+    for p in range(1000):
+        f.write(str(PT2_value[p])+",")
+    f.write("\n")
+    for p in range(1000):
+        f.write(str(PT2_min[p])+",")
+    f.write("\n")
+    for p in range(1000):
+        f.write(str(PT2_max[p])+",")
+    f.write("\n")
+    for p in range(1000):
+        f.write(str(PT2_time[p])+",")
+    f.write("\n")
+
+
+    f.write("t" + str(trial_number) + "\n")
+    f.write("T" + str(TRIAL_MAX) + "\n")
+    f.write("r" + str(read_time) + "\n")
+    f.write("R" + str(REPORT_TIME) + "\n")
+    f.write("m" + str(over_under) + "\n")
+    f.write("M" + str(OVER_UNDER) + "\n")
+    f.write("q" + str(query_time) + "\n")
+    f.write("Q" + str(QUIT_TIME) + "\n")
+    if greater_than == 1 and less_than == 1:
+        f.write("=" + "\n")
+    if greater_than == 1 and less_than == 0:
+        f.write("+" + "\n")
+    if greater_than == 0 and less_than == 1:
+        f.write("-" + "\n")
+
+    f.close()
+
+
+def save_raw():
+    my_str = str(current_test).zfill(4)
+    f = open(my_str + "\\" + my_str + ".csv", "w")
+    for p in range(1000000):
+        f.write(str(PT1[p]) + "," + str(PT2[p]) + ("\n"))
+    f.close()
+
+
+def save_summary():
+    f = open("Results summary.csv", "w")
+    v=range(0,len(results_summary),1)
+
+    for p in v:
+        y=range(0,len(results_summary[p]),1)
+
+        for q in y:
+            f.write(str(results_summary[p][q])+",")
+        f.write("\n")
+    f.close()
+
+
+def generic_keys():
+    global k
+    global current_value
+    global screen_x_position
+    global screen_y_position
+    global mode
+    global trial_number
+
+    if (k != -1):
+        print(k)
+
+    if k == 122:#z key
+        current_value = -1
+    if k == 90:#Z key
+        current_value = -1
+
+    if k == 13:# enter key
+        results_summary[current_test][100]=1
+        save_summary()
+        save_raw()
+        save_settings()
+        mode = 8
+
+    if k == 83:#S key
+        arduino.write(bytes('S', 'utf-8'))
+        time.sleep(0.10)
+
+    if k == 44:#, key
+        trial_number = max(0,trial_number - 1)
+    if k == 46:#. key
+        trial_number = min(999,trial_number+1)
+    if k == 91:#[ key
+        PT1_time[trial_number]=max(0,PT1_time[trial_number]-1)
+    if k == 93:#] key
+        PT1_time[trial_number]=min(999,PT1_time[trial_number]+1)
+    if k == 59:#; key
+        PT2_time[trial_number]=max(0,PT2_time[trial_number]-1)
+    if k == 39:#']' key
+        PT2_time[trial_number]=min(999,PT2_time[trial_number]+1)
+
+    if k == 115:  # s key save screenshot
+        if os.path.isdir('Screenshots') == 0:
+            os.mkdir('Screenshots')
+        v = range(0, 10000, 1)
+        for p in v:
+            my_screen_shot = "Screenshots" + "\\" + str(p).zfill(4) + ".png"
+            if os.path.exists(my_screen_shot) == 0:
+                print("found at " + str(p))
+                cv2.imwrite(my_screen_shot, blank_screen[3])
+                break
+
+    if k == 27:#esc key
+        mode = 10
+    if k == 65:#A key
+        ()
+    if k == 97:#a key
+        ()
+
+    for p in range(13):#A65 a97
+        if k == 65+p:
+            arduino.write(bytes(ALPHABET[p] + str(current_value), 'utf-8'))
+            time.sleep(0.10)
+            current_value = 0
+        if k == 97+p:
+            arduino.write(bytes(alphabet[p] + str(current_value), 'utf-8'))
+            time.sleep(0.10)
+            current_value = 0
+
+
+    if k == 111:#o key
+        arduino.write(bytes('o'+str(current_value), 'utf-8'))
+        time.sleep(0.10)
+        current_value = 0
+
+    if k == 79:#O key
+        arduino.write(bytes('O'+str(current_value), 'utf-8'))
+        time.sleep(0.10)
+        current_value = 0
+
+    # if k == 109:#m key
+    #     arduino.write(bytes('m'+str(current_value), 'utf-8'))
+    #     time.sleep(0.10)
+    #     current_value = 0
+    # if k == 77:#M key
+    #     arduino.write(bytes('M' + str(current_value), 'utf-8'))
+    #     time.sleep(0.10)
+    #     current_value = 0
+
+    if k == 116:#t key
+        if current_value < TRIAL_MAX:
+            arduino.write(bytes('t' + str(current_value), 'utf-8'))
+            time.sleep(0.10)
+        current_value = 0
+    if k == 84:#T key
+        arduino.write(bytes('T' + str(current_value), 'utf-8'))
+        time.sleep(0.10)
+        current_value = 0
+
+    if k == 114:#r key
+        if current_value < REPORT_TIME:
+            arduino.write(bytes('r' + str(current_value), 'utf-8'))
+            time.sleep(0.10)
+        current_value = 0
+
+    if k == 82:#R key
+        if current_value > read_time:
+            arduino.write(bytes('R' + str(current_value), 'utf-8'))
+            time.sleep(0.10)
+        current_value = 0
+
+    if k == 113:#q key
+        arduino.write(bytes('q' + str(current_value), 'utf-8'))
+        time.sleep(0.10)
+        current_value = 0
+
+    if k == 81:#Q key
+        arduino.write(bytes('Q' + str(current_value), 'utf-8'))
+        time.sleep(0.10)
+        current_value = 0
+
+    if k == 43:#+ key
+        if current_value == 0 or current_value == 1:
+            arduino.write(bytes('+' + str(current_value), 'utf-8'))
+    if k == 45:#- key
+        if current_value == 0 or current_value == 1:
+            arduino.write(bytes('-' + str(current_value), 'utf-8'))
+    if k == 61:#= key
+        if current_value == 1:
+            arduino.write(bytes('1' + str(current_value), 'utf-8'))
+            arduino.write(bytes('+' + str(current_value), 'utf-8'))
+
+    if (k == 48):
+        current_value = abs(current_value * 10) + 0
+    elif (k == 49):
+        current_value = abs(current_value * 10) + 1
+    elif (k == 50):
+        current_value = abs(current_value * 10) + 2
+    elif (k == 51):
+        current_value = abs(current_value * 10) + 3
+    elif (k == 52):
+        current_value = abs(current_value * 10) + 4
+    elif (k == 53):
+        current_value = abs(current_value * 10) + 5
+    elif (k == 54):
+        current_value = abs(current_value * 10) + 6
+    elif (k == 55):
+        current_value = abs(current_value * 10) + 7
+    elif (k == 56):
+        current_value = abs(current_value * 10) + 8
+    elif (k == 57):
+        current_value = abs(current_value * 10) + 9
+    elif (k == 8):  # bksp
+        current_value = current_value / 10
+        current_value = int(current_value)
+
+    if k == 96:#` key
+        screen_y_position=screen_y_position - 270
+        if screen_y_position < -1080:
+            screen_y_position = 1080
+    if k == 9:#tab key
+        screen_x_position = screen_x_position + 480
+        if screen_x_position > 1920:
+            screen_x_position = -1920
+    if k == 126:#~ key
+        screen_x_position = 0
+        screen_y_position = 0
+
+
+
+
+def click_event_mode0(event, x, y, flags, param):
+    global port_list_cursor
+    global arduino
+    global port_connected
+    global mode
+
+    if event == 10:
+        if flags > 0:
+            port_list_cursor = min(port_list_cursor + 1, len(port_list)-1)
+        if flags < 0:
+            port_list_cursor = max(0,port_list_cursor -1)
+
+
+def click_event_mode1(event, x, y, flags, param):
+    global results_summary
+    global mode
+    global options_screen
+    global cursor_position_value
+    global current_results_in_options
+    global blank_screen
+    global full_screen
+    global options
+
+    if event == cv2.EVENT_RBUTTONDOWN:
+        cursor_position_value = min(int((y - 5) / 20), 49)
+        results_summary[current_test][cursor_position_value+50] = int(not results_summary[current_test][cursor_position_value+50])
+
+    if event == cv2.EVENT_MOUSEMOVE:
+        if x > 960:
+            cursor_position_value = int((x-960)/240)*25 + min(24,int((y-5)/20))
+            print(cursor_position_value)
+            # (960 + 240 * int(p / 25), 25 + (25 * p) % 625)
+    if event == cv2.EVENT_MBUTTONDOWN:
+        cv2.destroyAllWindows()
+        #full_screen=0
+        #draw_screen2()
+
+        x=input("Enter new value for " + str(results_summary[0][options_screen])+":" or '')
+
+        options[options_screen].insert(len(options[options_screen]),x)
+        current_results_in_options[options_screen] = len(options[options_screen])
+        results_summary[current_test][options_screen]=x
+
+        #full_screen=1
+
+    if event == cv2.EVENT_LBUTTONDOWN:
+        if x < 960:
+            options_screen = min(49, int((y - 5) / 20))
+            print(options_screen)
+            mode = 1
+        if x > 960:
+            results_summary[current_test][options_screen]=options[options_screen][cursor_position_value]
+            current_results_in_options[options_screen]=cursor_position_value
+            mode = 2
+
+    if event==10:
+        if flags < 0:
+            current_results_in_options[options_screen]=min(current_results_in_options[options_screen]+1,len(options[options_screen])-1)
+            results_summary[current_test][options_screen]=options[options_screen][current_results_in_options[options_screen]]
+        if flags > 0:
+            current_results_in_options[options_screen] = max(current_results_in_options[options_screen] - 1, 0)
+            results_summary[current_test][options_screen] = options[options_screen][current_results_in_options[options_screen]]
+
+
+def click_event_mode2(event, x, y, flags, param):
+    global results_summary
+    global mode
+    global options_screen
+    global cursor_position_value
+    global current_results_in_options
+    global options
+
+    if event == cv2.EVENT_MBUTTONDOWN:
+        cv2.destroyAllWindows()
+        x=input("Enter new value for " + str(results_summary[0][cursor_position_value])+":" or '')
+        results_summary[current_test][cursor_position_value] = x
+        current_results_in_options[cursor_position_value] = len(options[cursor_position_value])
+        if x not in options[cursor_position_value] :
+            options[cursor_position_value].insert(len(options[cursor_position_value]), x)
+
+
+
+    if event == cv2.EVENT_MOUSEMOVE:
+        cursor_position_value = min(int((y-5)/20),49)
+    if event==10:
+        if flags > 0:
+            current_results_in_options[cursor_position_value]=min(current_results_in_options[cursor_position_value]+1,len(options[options_screen])-1)
+            results_summary[current_test][cursor_position_value]=options[cursor_position_value][current_results_in_options[cursor_position_value]]
+        if flags < 0:
+            current_results_in_options[cursor_position_value]=max(current_results_in_options[cursor_position_value]-1,0)
+            results_summary[current_test][cursor_position_value]=options[cursor_position_value][current_results_in_options[cursor_position_value]]
+    if event == cv2.EVENT_RBUTTONDOWN:
+        results_summary[current_test][cursor_position_value+50]=int(not results_summary[current_test][cursor_position_value+50])
+
+    if event == cv2.EVENT_LBUTTONDOWN:
+        options_screen=cursor_position_value
+        print(options_screen)
+        mode = 1
+    copy_text=''
+    v=range(0,50,1)
+    for p in v:
+        if results_summary[current_test][p+50]==1:
+            copy_text=copy_text+str(results_summary[current_test][p])+" "
+    copy_text=copy_text+"source video"
+    # if copy_and_paste_mode == 1:
+    #     pyperclip.copy(copy_text)
+
+
+def click_event_mode4(event, x, y, flags, param):
+    global read_time
+    global REPORT_TIME
+    global trial_number
+    global TRIAL_MAX
+    global query_time
+    global QUIT_TIME
+    global current_x
+    global current_y
+    global lb_down
+    global mb_down
+    global rb_down
+    global current_value
+    global over_under
+    global OVER_UNDER
+    global less_than
+    global greater_than
+    global options_screen
+    global row_offset
+    global row_clicked
+
+
+    current_x = min(x,999)
+    current_y = y
+
+
+###OUTPUT ON and off
+    if x < 1000 and y>400 and y < 600:
+        if event == cv2.EVENT_LBUTTONDOWN:
+            arduino.write(bytes(ALPHABET[int((y-400)/20)] + str(current_x-1), 'utf-8'))
+            time.sleep(0.25)
+        if event == cv2.EVENT_RBUTTONDOWN:
+            arduino.write(bytes(alphabet[int((y-400)/20)] + str(current_x-1), 'utf-8'))
+            time.sleep(0.25)
+
+###Current results at top
+    if x < 1000 and y < 128: ### both results
+        if event == cv2.EVENT_LBUTTONDOWN and (current_x < REPORT_TIME):
+            arduino.write(bytes('r'+str(current_x), 'utf-8'))
+            time.sleep(0.25)
+            calculate_min_max_PT1(trial_number)
+            calculate_min_max_PT2(trial_number)
+
+        if event == cv2.EVENT_RBUTTONDOWN and (current_x > read_time):
+            arduino.write(bytes('R'+str(current_x), 'utf-8'))
+            time.sleep(0.10)
+            calculate_min_max_PT1(trial_number)
+            calculate_min_max_PT2(trial_number)
+        if event == cv2.EVENT_MBUTTONDOWN and (current_x > read_time):
+            arduino.write(bytes('q' + str(current_x), 'utf-8'))
+            time.sleep(0.10)
+            calculate_min_max_PT1(trial_number)
+            calculate_min_max_PT2(trial_number)###PT1_time
+        if event == cv2.EVENT_RBUTTONDBLCLK and current_x > query_time:
+            arduino.write(bytes('Q' + str(current_x), 'utf-8'))
+            time.sleep(0.10)
+
+
+###PT1_time
+    if 128<y<256 and x<1000:
+        if event == cv2.EVENT_LBUTTONDOWN:
+            PT1_time[trial_number]=x-read_time
+        if event == 10 and flags < 0:
+            PT1_time[trial_number] = max(0,PT1_time[trial_number]-1)
+        if event == 10 and flags > 0:
+            PT1_time[trial_number] = min (999,PT1_time[trial_number]+1)
+###PT2_time
+    if 256<y<384 and x<1000:
+        if event == cv2.EVENT_LBUTTONDOWN:
+            PT2_time[trial_number]=x-read_time
+        if event == 10 and flags < 0:
+            PT2_time[trial_number] = max(0,PT2_time[trial_number]-1)
+        if event == 10 and flags > 0:
+            PT2_time[trial_number] = min (999,PT2_time[trial_number]+1)
+
+
+###Settings on right side
+    if 1480<x<1700 and 0<y<1000:
+        row_clicked = min(50,int(y/20))
+        if event == cv2.EVENT_LBUTTONDOWN:
+            options_screen = max(1,row_clicked)#use this to avoid cheaply changing trial - will add generic key later but it will need some work
+            #print(options_screen)
+            if y < 20:
+                options_screen=0
+
+        if event == cv2.EVENT_MBUTTONDOWN:
+            ()
+            options_screen = max(1, row_clicked)
+            cv2.destroyAllWindows()
+            text_input = input("Enter new value for " + str(results_summary[0][options_screen]) + ":" or '')
+            current_results_in_options[options_screen] = len(options[options_screen])
+            options[options_screen].insert(len(options[options_screen]), text_input)
+            results_summary[current_test][options_screen]=text_input
+            options_screen = 0
+
+
+
+        if event == cv2.EVENT_RBUTTONDOWN:
+            results_summary[current_test][row_clicked+50] = abs(int(results_summary[current_test][row_clicked+50])-1)
+            options_screen = 0
+
+    if 1700<x<1920 and 0<y<1000:
+        row_clicked = min(50, int(y / 20))
+        row_clicked = max(1,row_clicked)
+
+        if event == cv2.EVENT_RBUTTONDOWN and options_screen == 0:
+            results_summary[current_test][row_clicked + 50] = abs(int(results_summary[current_test][row_clicked + 50]) - 1)
+
+        if event == cv2.EVENT_RBUTTONDOWN and options_screen != 0:
+            options_screen=0
+
+        if event == cv2.EVENT_MBUTTONDOWN and options_screen == 0:
+            options_screen = max(1, row_clicked)
+            cv2.destroyAllWindows()
+            text_input = input("Enter new value for " + str(results_summary[0][options_screen]) + ":" or '')
+            current_results_in_options[options_screen] = len(options[options_screen])
+            options[options_screen].insert(len(options[options_screen]), text_input)
+            results_summary[current_test][options_screen] = text_input
+            options_screen = 0
+
+        if event == cv2.EVENT_LBUTTONDOWN and options_screen!=0:
+            results_summary[current_test][options_screen] = options[options_screen][row_clicked]
+            current_results_in_options[options_screen] = row_clicked
+            options_screen = 0
+
+        #if event == cv2.EVENT_LBUTTONDOWN and options_screen == 0:
+            #options_screen = max(1, row_clicked)  # use this to avoid cheaply changing trial - will add generic key later but it will need some work
+            #if y < 20:
+                #options_screen = 0
+
+
+        if event == 10 and flags < 0 and options_screen != 0:
+            row_offset = max(0,row_offset -1)
+
+        if event == 10 and flags < 0 and options_screen != 0:
+            row_offset = min(999,row_offset + 1)
+
+        if event == 10 and flags > 0 and options_screen == 0:
+            current_results_in_options[row_clicked] = min(current_results_in_options[row_clicked] + 1, len(options[row_clicked])-1)
+            results_summary[current_test][row_clicked] = options[row_clicked][current_results_in_options[row_clicked]]
+
+        if event == 10 and flags < 0 and options_screen == 0:
+            current_results_in_options[row_clicked] = max(current_results_in_options[row_clicked] - 1, 0)
+            results_summary[current_test][row_clicked] = options[row_clicked][
+                current_results_in_options[row_clicked]]
+
+
+
+### Settings at bottom
+    if y>1000:
+        if event == 10 and flags < 0 and x<250:  # mouse wheel
+            arduino.write(bytes('l'+str(max(trial_number-1,0)), 'utf-8'))
+            time.sleep(0.10)
+
+        if event == 10 and flags > 0 and x<250:  # mouse wheel
+            arduino.write(bytes('l'+str(min(TRIAL_MAX,trial_number+1)), 'utf-8'))
+            time.sleep(0.01)
+
+        if event == 10 and flags < 0 and x>250 and x<500:  # mouse wheel
+            arduino.write(bytes('L'+str(max(TRIAL_MAX-1,0)), 'utf-8'))
+            time.sleep(0.25)
+
+        if event == 10 and flags > 0 and x>250 and x<500:  # mouse wheel
+            arduino.write(bytes('L'+str(TRIAL_MAX+1), 'utf-8'))
+            time.sleep(0.10)
+
+        if event == cv2.EVENT_LBUTTONDOWN and 0<x<250:###will need to add calculate values, maybe PT1_use above TRIAL_MAX all 0?
+            arduino.write(bytes('l'+str(current_value), 'utf-8'))
+            time.sleep(0.10)
+        if event == cv2.EVENT_LBUTTONDOWN and 250<x<500:###will also need to add serial commands
+            arduino.write(bytes('L'+str(current_value), 'utf-8'))
+            time.sleep(0.10)
+        if event == cv2.EVENT_LBUTTONDOWN and 500<x<625:
+            arduino.write(bytes('r'+str(current_value), 'utf-8'))
+            time.sleep(0.10)
+        if event == cv2.EVENT_LBUTTONDOWN and 625<x<750:
+            arduino.write(bytes('e'+str(current_value), 'utf-8'))
+            time.sleep(0.10)
+        if event == cv2.EVENT_LBUTTONDOWN and 750<x<875:
+            arduino.write(bytes('R'+str(current_value), 'utf-8'))
+            time.sleep(0.10)
+        if event == cv2.EVENT_LBUTTONDOWN and 875<x<1000:
+            arduino.write(bytes('E'+str(current_value), 'utf-8'))
+            time.sleep(0.10)
+        if event == cv2.EVENT_LBUTTONDOWN and 1250<x<1325:
+            arduino.write(bytes('o'+str(current_value), 'utf-8'))
+            time.sleep(0.10)
+        if event == cv2.EVENT_LBUTTONDOWN and 1325<x<1500:
+            arduino.write(bytes('O'+str(current_value), 'utf-8'))
+            time.sleep(0.10)
+
+        if event == cv2.EVENT_LBUTTONDOWN and 1100<x<1200 and y<1040:
+
+            if less_than == 0 and greater_than == 1:
+
+                arduino.write(bytes('=', 'utf-8'))
+                time.sleep(0.10)
+
+            if less_than == 1 and greater_than == 1:
+                arduino.write(bytes('-', 'utf-8'))
+                time.sleep(0.10)
+
+        if event == cv2.EVENT_LBUTTONDOWN and 1100<x<1200 and y>1040:
+
+            if less_than == 1 and greater_than == 0:
+
+                 arduino.write(bytes('=', 'utf-8'))
+                 time.sleep(0.10)
+            if less_than == 1 and greater_than == 1:
+                arduino.write(bytes('+', 'utf-8'))
+                time.sleep(0.10)
+
+
+
+
+
+    if x < 1500 and 960<y<1000:
+        if event == 10 and flags < 0:
+            current_value = max(0,current_value - 1)
+        if event == 10 and flags > 0:
+            current_value = min(999,current_value+1)
+    if 960<y<1000 and x<1000 and event == cv2.EVENT_LBUTTONDOWN:
+        current_value = x
+
+
+    ### PT1_use and PT2_use
+    if x<1000 and 600 < y < 900:
+        if event == cv2.EVENT_LBUTTONDOWN:
+            trial_number = x
+
+
+    if x<1000 and 900 > y > 800:
+        if event == cv2.EVENT_RBUTTONDOWN:
+            rb_down = 1
+            if y<866:
+                PT1_use[x]=0
+                calculate_min_max_PT1(x)
+                calculate_averages()
+            if y > 833:
+                PT2_use[x]=0
+                calculate_min_max_PT2(x)
+                calculate_averages()
+        if event == cv2.EVENT_RBUTTONUP:
+            rb_down = 0
+        if event == cv2.EVENT_MBUTTONDOWN:
+            mb_down = 1
+            if y<866:
+                PT1_use[x]=1
+                calculate_min_max_PT1(x)
+                calculate_averages()
+            if y > 833:
+                PT2_use[x]=1
+                calculate_min_max_PT1(x)
+                calculate_averages()
+        if event == cv2.EVENT_MBUTTONUP:
+            mb_down = 0
+        if event == cv2.EVENT_MOUSEMOVE:
+            if rb_down == 1 and y < 866:
+                PT1_use[x] = 0
+                calculate_min_max_PT1(x)
+                calculate_averages()
+            if rb_down == 1 and y > 833:
+                PT2_use[x] = 0
+                calculate_min_max_PT2(x)
+                calculate_averages()
+            if mb_down == 1 and y < 866:
+                PT1_use[x] = 1
+                calculate_min_max_PT1(x)
+                calculate_averages()
+            if mb_down == 1 and y > 833:
+                PT2_use[x] = 1
+                calculate_min_max_PT2(x)
+                calculate_averages()
+
+
+
+def draw_screen1():
+    global blank_screen
+    blank_screen[0] = np.zeros((1080, 1920, 3), dtype='uint8')  # consider adding within mode to not overwrite each time
+    v = range(0, 50, 1)
+    for p in v:
+        if results_summary[current_test][p+50] == 1:
+            cv2.rectangle(blank_screen[0], (0, 5 + 20 * p), (960, 5 + 20 * p + 20), (0, 128, 0), -1)
+        cv2.putText(blank_screen[0], str(results_summary[0][p]), (0, 20 + 20 * p), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                    (255, 255, 255), 1)
+
+    cv2.rectangle(blank_screen[0], (960 + 240 * int(current_results_in_options[options_screen] / 25),
+                                    5 + int(current_results_in_options[options_screen] % 25) * 20), (
+                      960 + 240 + 240 * int(current_results_in_options[options_screen] / 25),
+                      5 + 20 + int(current_results_in_options[options_screen] % 25) * 20), (125, 0, 0), -1)
+    if int(results_summary[current_test][100]) == 1:
+        cv2.circle(blank_screen[0], (180,15),5,(0, 255, 0), -1)
+    if int(results_summary[current_test][100]) == 0:
+        cv2.circle(blank_screen[0], (180,15),5,(0, 0, 255), -1)
+
+
+
+    cv2.rectangle(blank_screen[0], (0, 5 + 20 * options_screen), (960, 5 + 20 * options_screen + 20), (255, 255, 255),
+                  2)
+
+    v = range(0, len(options[options_screen]), 1)
+    for p in v:
+        cv2.putText(blank_screen[0], str(options[options_screen][p]), (960 + 240 * int(p / 25), 20 + (20 * p) % 500), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                    (255, 255, 255), 1)
+
+    cv2.putText(blank_screen[0],str(current_value),(1880,25),cv2.FONT_HERSHEY_SIMPLEX, 0.4,(255, 255, 255), 1)
+
+    show_screen("screen1", blank_screen[0], click_event_mode1)
+    generic_keys()
+
+
+def draw_screen2():
+    global blank_screen
+    blank_screen[0] = np.zeros((1080, 1920, 3), dtype='uint8')  # consider adding within mode to not overwrite each time
+    v = range(0, 50, 1)
+    for p in v:
+        if results_summary[current_test][p+50] == 1:
+            cv2.rectangle(blank_screen[0], (0, 5 + 20 * p), (960, 5 + 20 * p + 20), (0, 128, 0), -1)
+        cv2.putText(blank_screen[0], str(results_summary[0][p]), (0, 20 + 20 * p), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                    (255, 255, 255), 1)
+        cv2.putText(blank_screen[0], str(p), (200, 20 + 20 * p), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                    (255, 255, 255), 1)
+        cv2.putText(blank_screen[0], str(results_summary[current_test][p]), (960, 20 + 20 * p), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                    (255, 255, 255), 1)
+    cv2.putText(blank_screen[0],str(current_value),(1880,25),cv2.FONT_HERSHEY_SIMPLEX, 0.4,(255, 255, 255), 1)
+    if int(results_summary[current_test][100]) == 1:
+        cv2.circle(blank_screen[0], (180,15),5,(0, 255, 0), -1)
+    if int(results_summary[current_test][100]) == 0:
+        cv2.circle(blank_screen[0], (180,15),5,(0, 0, 255), -1)
+
+    show_screen("screen1", blank_screen[0], click_event_mode2)
+    generic_keys()
+
+
+def draw_screen4():
+    global blank_screen
+    blank_screen[3] = np.zeros((1080, 1920, 3), dtype='uint8')
+
+###Options at bottom
+    if SYNCHRONISED == 1:
+        cv2.circle(blank_screen[3],(10,920),5,(255,255,255),-1)
+        #cv2.circle(blank_screen[3], (30, 920), 0, (255, 255, 255), 1)
+        #cv2.circle(blank_screen[3], (p, 128 - int(PT1[trial_number * 1000 + p])), 1, (255, 0, 255), 1)
+    cv2.putText(blank_screen[3], (str(current_value)), (0, 1000), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+    cv2.putText(blank_screen[3], (str(current_x)), (0, 960), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+    cv2.putText(blank_screen[3], ("trial_number "), (0, 1040), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+    cv2.putText(blank_screen[3], (str(trial_number)), (0, 1080), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+    cv2.putText(blank_screen[3], ("TRIAL_MAX "), (250, 1040), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+    cv2.putText(blank_screen[3], (str(TRIAL_MAX)), (250, 1080), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+
+    cv2.putText(blank_screen[3], ("read"), (500, 1040), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+    cv2.putText(blank_screen[3], (str(read_time)), (500, 1080), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+    cv2.putText(blank_screen[3], ("query"), (625, 1040), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 128, 0), 2)
+    cv2.putText(blank_screen[3], (str(query_time)), (625, 1080), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 128, 0), 2)
+    cv2.putText(blank_screen[3], ("REPORT"), (750, 1040), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
+    cv2.putText(blank_screen[3], (str(REPORT_TIME)), (750, 1080), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
+    cv2.putText(blank_screen[3], ("QUIT"), (875, 1040), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 128, 255), 2)
+    cv2.putText(blank_screen[3], (str(QUIT_TIME)), (875, 1080), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 128, 255), 2)
+
+
+    cv2.putText(blank_screen[3], ("over_under "), (1250, 1040), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+    cv2.putText(blank_screen[3], (str(over_under)), (1250, 1080), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+    cv2.putText(blank_screen[3], (str(OVER_UNDER)), (1325, 1080), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+
+    if greater_than == 1:
+        cv2.putText(blank_screen[3], ("+"), (1100, 1080), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+    if less_than == 1:
+        cv2.putText(blank_screen[3], ("-"), (1100, 1040), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+
+##results for ON/off
+
+    for p in range(10):
+
+        if OUTPUT_ON_TIME[p] >= 0 and OUTPUT_ON_TIME[p] < output_off_time[p]:
+            cv2.rectangle(blank_screen[3], (int(OUTPUT_ON_TIME[p]), 400+p*20),(min(1000,int(output_off_time[p])), 420+p*20), (255, 255, 255), -1)
+
+        if OUTPUT_ON_TIME[p] >= 0 and OUTPUT_ON_TIME[p] > output_off_time[p]:
+            cv2.rectangle(blank_screen[3], (0, 400+p*20),(int(output_off_time[p]), 420+p*20), (255, 255, 255), -1)
+            cv2.rectangle(blank_screen[3], (int(OUTPUT_ON_TIME[p]), 400 + p * 20), (1000, 420 + p * 20), (255, 255, 255), -1)
+
+        cv2.putText(blank_screen[3], (str(button_name_list[p])), (1000, 420+p*20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        cv2.putText(blank_screen[3], (str(OUTPUT_ON_TIME[p])), (1100, 420 + p * 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        cv2.putText(blank_screen[3], (str(output_off_time[p])), (1200, 420 + p * 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        cv2.putText(blank_screen[3], (str(current_x - 1 )), (1000, 400), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        cv2.putText(blank_screen[3], ("ON"), (1100, 400), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        cv2.putText(blank_screen[3], ("off"), (1200, 400), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+###results for P1
+    cv2.putText(blank_screen[3], (str(PT1_value[trial_number])), (1200, 148), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+    cv2.putText(blank_screen[3], (str(PT1_min[trial_number])), (1200, 178), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+    cv2.putText(blank_screen[3], (str(PT1_max[trial_number])), (1200, 208), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+    cv2.putText(blank_screen[3], (str(PT1_time[trial_number])), (1200, 238), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+    cv2.putText(blank_screen[3], (str(PT1[trial_number * 1000 + current_x])), (1300, 148), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+    cv2.putText(blank_screen[3], (str(current_x)), (1300, 238), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+    cv2.putText(blank_screen[3], str(PT1_avg), (1300, 193), cv2.FONT_HERSHEY_SIMPLEX, 1,(255, 0, 0), 2)
+
+
+###Results for P2
+    cv2.putText(blank_screen[3], (str(PT2_value[trial_number])), (1200, 276), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+    cv2.putText(blank_screen[3], (str(PT2_min[trial_number])), (1200, 306), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+    cv2.putText(blank_screen[3], (str(PT2_max[trial_number])), (1200, 336), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+    cv2.putText(blank_screen[3], (str(PT2_time[trial_number])), (1200, 366), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+    cv2.putText(blank_screen[3], (str(PT2[trial_number * 1000 + current_x])), (1300, 276), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+    cv2.putText(blank_screen[3], (str(current_x)), (1300, 366), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+    cv2.putText(blank_screen[3], str(PT2_avg), (1300, 321), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+    cv2.putText(blank_screen[3], (str(PT1_time[current_x])), (1200, 640), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+    cv2.putText(blank_screen[3], (str(PT2_time[current_x])), (1200, 760), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+    cv2.putText(blank_screen[3], (str(trial_number)), (1200, 700), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+
+###results on right side
+    v = range(0, 50, 1)
+    for p in v:
+        cv2.putText(blank_screen[3],str(p),(1650,20 + 20 * p),cv2.FONT_HERSHEY_SIMPLEX, 0.4,(255, 255, 255), 1)
+        if results_summary[current_test][p+50] == 1:
+            cv2.rectangle(blank_screen[3], (1480, 5 + 20 * p), (1700, 5 + 20 * p + 20), (0, 128, 0), -1)
+        cv2.putText(blank_screen[3], str(results_summary[0][p]), (1480, 20 + 20 * p), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                    (255, 255, 255), 1)
+        if options_screen==0:
+            cv2.putText(blank_screen[3], str(results_summary[current_test][p]), (1700, 20 + 20 * p), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                        (255, 255, 255), 1)
+    if options_screen !=0:
+        cv2.rectangle(blank_screen[3], (1700,current_results_in_options[options_screen]*20),(1920,current_results_in_options[options_screen]*20+20),(128,0,0),-1)
+        for p in range(len(options[options_screen])):
+            cv2.putText(blank_screen[3], str(options[options_screen][p]), (1700, 20 + 20 * p), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                        (255, 255, 255), 1)
+
+    if len(str(results_summary[current_test][row_clicked])) > 30:
+        cv2.putText(blank_screen[3], str(results_summary[current_test][row_clicked]), (1400 - 8*len (str(results_summary[current_test][row_clicked])), 1000), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                (255, 255, 255), 1)
+
+
+
+
+###use list
+    for p in range(1000):
+        cv2.rectangle(blank_screen[3],(p,800),(p+1,833),(int(PT1_use[p])*128+127, 0 ,0))
+        cv2.rectangle(blank_screen[3], (p, 866), (p + 1, 900), (0, 0,int(PT2_use[p]) * 128 + 127))
+        cv2.rectangle(blank_screen[3], (p, 833), (p + 1, 866), (int(PT1_use[p])*128+127, 0, int(PT2_use[p]) * 128 + 127))
+###PT1 and PT2 results
+
+
+    v = range(0, 1000, 1)
+    for p in v:
+        if int(PT1[trial_number * 1000 + p]) == int(PT2[trial_number * 1000 + p]):
+            cv2.circle(blank_screen[3], (p, 128 - int(PT1[trial_number * 1000 + p])), 0, (255, 0, 255), 1)
+        if int(PT1[trial_number * 1000 + p]) != int(PT2[trial_number * 1000 + p]):
+            cv2.circle(blank_screen[3], (p, 128 - int(PT1[trial_number * 1000 + p])), 0, (255, 0, 0), 1)
+            cv2.circle(blank_screen[3], (p, 128 - int(PT2[trial_number * 1000 + p])), 0, (0, 0, 255), 1)
+
+    cv2.line(blank_screen[3], (read_time, 0), (read_time, 128), (0, 255, 0), 1)
+    cv2.line(blank_screen[3], (query_time, 0), (query_time, 128), (0, 128, 0), 1)
+    cv2.line(blank_screen[3], (REPORT_TIME, 0), (REPORT_TIME, 128), (255, 255, 0), 1)
+    cv2.line(blank_screen[3], (QUIT_TIME, 0), (QUIT_TIME, 128), (0, 128, 255), 1)
+
+    if PT1_time[trial_number] != PT2_time[trial_number]:
+        cv2.line(blank_screen[3], (PT1_time[trial_number]+read_time, 80), (PT1_time[trial_number]+read_time, 384), (255, 0, 0), 1)
+        cv2.line(blank_screen[3], (PT2_time[trial_number]+read_time, 80), (PT2_time[trial_number]+read_time, 384), (0, 0, 255), 1)
+    if PT1_time[trial_number] == PT2_time[trial_number]:
+        cv2.line(blank_screen[3], (PT1_time[trial_number]+read_time, 80), (PT1_time[trial_number]+read_time, 384), (255, 0, 255), 1)
+
+###PT1_results
+    for p in range(1000):
+        cv2.circle(blank_screen[3], (p, 256 - int(PT1[trial_number * 1000 + p])), 0, (255, 0, 0), 1)
+    cv2.line(blank_screen[3],(0,256),(1000,256),(255,255,255),1)
+    #cv2.line(blank_screen[3], (PT1_time[trial_number] + read_time, 128), (PT1_time[trial_number] + read_time, 256), (255, 0, 0), 1)
+
+
+###PT2_results
+    for p in range(1000):
+        cv2.circle(blank_screen[3], (p, 384 - int(PT2[trial_number * 1000 + p])), 0, (0, 0, 255), 1)
+    cv2.line(blank_screen[3],(0,384),(1000,384),(255,255,255),1)
+    #cv2.line(blank_screen[3], (PT2_time[trial_number] + read_time, 256), (PT2_time[trial_number] + read_time, 384), (0, 0, 255), 1)
+
+###Results
+    for p in range(1000):
+        cv2.circle(blank_screen[3], (p, 800 - int(PT1_time[p])), 0, (255, 0, 0), 1)
+        cv2.circle(blank_screen[3], (p, 800 - int(PT2_time[p])), 0, (0, 0, 255), 1)
+        if PT1_time[p] == PT2_time[p]:
+            cv2.circle(blank_screen[3], (p, 800 - int(PT1_time[p])), 0, (255, 0, 255), 1)
+        cv2.line(blank_screen[3], (trial_number, 800), (trial_number, 600), (255, 255, 255), 1)
+
+
+
+    show_screen("screen", blank_screen[3], click_event_mode4)
+    generic_keys()
+
+
+
+
+while True:
+
+    if mode == 0:
+        blank_screen[2] = np.zeros((1080, 1920, 3), dtype='uint8')
+        cv2.putText(blank_screen[2], (port_list[port_list_cursor]), (1750, 1000), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        cv2.putText(blank_screen[2], ("Please connected arduino R4. Use mouse scroll wheel to select COM port."), (0, 1000), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        if port_connected == 0:
+            cv2.circle(blank_screen[2], (1760,1040), 1, (0, 0, 255), 5)
+        show_screen("screen", blank_screen[2], click_event_mode0)
+        generic_keys()
+        try:
+            arduino = serial.Serial(port=port_list[port_list_cursor], baudrate=115200, timeout=.1)
+            arduino.write(bytes('S', 'utf-8'))
+            time.sleep(0.30)
+            mode = 4
+        except:
+            ()
+
+    if mode == 1:
+        draw_screen1()
+        if k == 32:# space bar
+            cv2.destroyAllWindows()
+            save_summary()
+            mode = 2
+
+    if mode == 2:
+        draw_screen2()
+        if k == 32:# space bar
+            cv2.destroyAllWindows()
+            time0 = int(time.time())
+            save_summary()
+            mode = 4
+
+
+    if mode == 4:
+
+        draw_screen4()
+
+        if k == 9:#tab key
+            save_raw()
+            save_settings()
+            save_summary()
+
+
+        if k == 32:#space bar
+            #cv2.destroyAllWindows()
+            #save_raw()
+            save_settings()
+            save_summary()
+
+
+        data = arduino.readline()
+        obtain_data(data)
+
+    if mode == 8:#write out results here
+
+        my_str = str(results_summary[current_test][0]).zfill(4)
+
+        trial_number = 0
+        draw_screen4()
+
+        cv2.imwrite(my_str + "\\" + my_str + ".png", blank_screen[3])
+
+        my_str2 = ""
+        v = range(0, 50, 1)
+        for p in v:
+            if results_summary[current_test][p+50] == 1:
+                my_str2 = my_str2 + str(results_summary[current_test][p])
+                my_str2 = my_str2 + " "
+        f = open(my_str + "\\" + my_str2 + ".txt", "w")
+        my_str3 = ""
+        my_str3 = my_str3 + "For test " + str(results_summary[current_test][0]) + " we looked at " + str(
+            results_summary[current_test][2]) + " on " + str(results_summary[current_test][1]) + " using the " + str(
+            results_summary[current_test][3]) + " method. "
+        my_str3=my_str3+ "The monitor " + str(results_summary[current_test][10]) + " was used. "
+
+        my_str3=my_str3+"Resolution was " + str(results_summary[current_test][11]) + ". "
+        if results_summary[current_test][12] != '':
+            my_str3 = my_str3 + " Other screen settings were " + str(results_summary[current_test][12]) + "."
+        if results_summary[current_test][19] != '':  # 18
+            my_str3 = my_str3 + " In game vsync settings were set to " + str(results_summary[current_test][19]) + ". "
+        if results_summary[current_test][20] != '':
+            my_str3 = my_str3 + "System settings were " + str(results_summary[current_test][20]) + ". "
+        if results_summary[current_test][21] != '':
+            my_str3 = my_str3 + "Window settings were " + str(results_summary[current_test][21]) + ". "
+        if results_summary[current_test][22] != '':
+            my_str3 = my_str3 + "Nvidia settings were " + str(results_summary[current_test][22]) + ". "
+        if results_summary[current_test][23] != '':
+            my_str3 = my_str3 + "Power settings were " + str(results_summary[current_test][23]) + ". "
+        if results_summary[current_test][24] != '':
+            my_str3 = my_str3 + "Other settings were " + str(results_summary[current_test][24]) + ". "
+        f.write(my_str3)
+        f.write("\n")
+
+        if results_summary[current_test][29] != '':
+            my_str3 = ""
+            my_str3 = my_str3 + "Other notes include " + str(results_summary[current_test][29]) + ". "
+            f.write(my_str3)
+            f.write("\n")
+        if results_summary[current_test][30] != '':
+            my_str3 = ""
+            my_str3 = my_str3 + "Further notes are " + str(results_summary[current_test][30]) + ". "
+            f.write(my_str3)
+            f.write("\n")
+        if results_summary[current_test][31] != '':
+            my_str3 = ""
+            my_str3 = my_str3 + "Stage used was " + str(results_summary[current_test][31]) + ". "
+            f.write(my_str3)
+            f.write("\n")
+
+        if results_summary[current_test][48] != '':
+            my_str3 = ""
+            my_str3 = my_str3 + "This game was part of the " + str(results_summary[current_test][48])
+            f.write(my_str3)
+            f.write("\n")
+
+        if results_summary[current_test][49] != '':
+            my_str3 = ""
+            my_str3 = my_str3 + "The patch was version " + str(results_summary[current_test][49])
+            f.write(my_str3)
+            f.write("\n")
+
+
+        if results_summary[current_test][32] != '':
+            my_str3 = ""
+            my_str3 = my_str3 + "A total of " + str(
+                results_summary[current_test][32]) + " trials were performed for Result 1. Not all were necessarily used. "
+            f.write(my_str3)
+            f.write("\n")
+        if results_summary[current_test][33] != '':
+            my_str3 = ""
+            my_str3 = my_str3 + "A total of " + str(
+                results_summary[current_test][33]) + " trials were performed for Result 2. Not all were necessarily used. "
+            f.write(my_str3)
+            f.write("\n")
+        my_str3 = ""
+        if results_summary[current_test][4] != '':
+            my_str3 = my_str3 + "Result 1 testing " + str(results_summary[current_test][15]) + " " + str(
+                results_summary[current_test][8]) + " times, " + str(results_summary[current_test][13])
+
+            if results_summary[current_test][14] != '':
+                my_str3 = my_str3 + " via " + results_summary[current_test][14] + ", "
+            my_str3 = my_str3 + " gave a result of " + str(
+                results_summary[current_test][4]) + "ms. This was via recorded result of " + str(results_summary[current_test][6])
+            my_str3 = my_str3 + "ms, with offset of " + results_summary[current_test][27]
+            my_str3 = my_str3 + "ms, giving a final result of " + str(results_summary[current_test][4]) + "ms. "
+            f.write(my_str3)
+            f.write("\n")
+        my_str3 = ""
+        if results_summary[current_test][5] != '':
+            my_str3 = my_str3 + "Result2 testing " + str(results_summary[current_test][18]) + " " + str(
+                results_summary[current_test][9]) + " times, " + str(results_summary[current_test][16])
+
+            if results_summary[current_test][17] != '':
+                my_str3 = my_str3 + " via " + results_summary[current_test][17] + ", "
+            my_str3 = my_str3 + " gave a result of " + str(
+                results_summary[current_test][5]) + "ms. This was via recorded result of " + str(results_summary[current_test][7])
+            my_str3 = my_str3 + "ms, with offset of " + results_summary[current_test][28]
+            my_str3 = my_str3 + "ms, giving a final result of " + str(results_summary[current_test][5]) + "ms. "
+            f.write(my_str3)
+            f.write("\n")
+        my_str3 = ""
+        if results_summary[current_test][44] != '':
+            my_str3 = my_str3 + "Result1 came out faster " + str(results_summary[current_test][44])+" times. "
+        if results_summary[current_test][45]!='':
+            my_str3 = my_str3 + "Result2 came out faster " + str(results_summary[current_test][45])+ " times. "
+        if results_summary[current_test][46] != '':
+            my_str3 = my_str3 + "There were " + str(results_summary[current_test][46]) + " times where they were tied. "
+
+        if results_summary[current_test][44]!='' and results_summary[current_test][45]!='' and results_summary[current_test][47]!='':
+            if float(results_summary[current_test][44]) > float(results_summary[current_test][45]):
+                my_str3=my_str3+ "Result1 was overall "+str(abs(float(results_summary[current_test][47])))+"ms faster. "
+            if float(results_summary[current_test][44]) < float(results_summary[current_test][45]):
+                my_str3 = my_str3 + "Result2 was overall " + str(abs(float(results_summary[current_test][47]))) + "ms faster. "
+
+        f.write(my_str3)
+        f.write("\n")
+
+        my_str3 = ""
+        my_str3 = my_str3 + "There are two different ways to calculate input lag using the Phototransistor method. "
+        f.write(my_str3)
+        f.write("\n")
+
+        my_str3 = ""
+
+        my_str3 = my_str3 + "Using the Phototransistor - known hz method, the monitor refresh rate of "+str(results_summary[current_test][34])
+        my_str3 = my_str3 + "hz is used, with an expected screen draw time of " + str(results_summary[current_test][35])+"ms. "
+        my_str3 = my_str3 + "From Read 1 result " + str(results_summary[current_test][6]) + "ms" + str(results_summary[current_test][25])
+        my_str3 = my_str3 + "% of the way down the screen, we can calcualte the input lag at the top and bottom of the screen as "
+        my_str3 = my_str3 + str(results_summary[current_test][36])+"ms and "+str(results_summary[current_test][37])+"ms. "
+        my_str3 = my_str3 + "From Read 2 result " + str(results_summary[current_test][7]) + "ms" + str(results_summary[current_test][26])
+        my_str3 = my_str3 + "% of the way down the screen, we can calculate the input lag at the top and bottom of the screen as "
+        my_str3 = my_str3 + str(results_summary[current_test][38])+"ms and "+str(results_summary[current_test][39])+"ms. "
+        f.write(my_str3)
+        f.write("\n")
+        my_str3 = ""
+
+        my_str3 = my_str3 + "The other method is the Phototransistor - extrapolated method. If we didn't known the monitor refresh rate, "
+        my_str3 = my_str3 + "or weren't sure (for example PS5 outputting at 120hz, but on a 240hz monitor) then we can use the existing data "
+        my_str3 = my_str3 + "to determine the refresh rate and proceed from there. So a Read 1 result of " + str(results_summary[current_test][6])
+        my_str3 = my_str3 + "ms " + str(results_summary[current_test][25]) + "% of the way down the screen and a Read 2 result of "
+        my_str3 = my_str3 + str(results_summary[current_test][7]) + "ms " + str(results_summary[current_test][26])
+        my_str3 = my_str3 + "% of the way down the screen would allow us to determine a screen refresh rate of "
+        my_str3 = my_str3 + str(results_summary[current_test][40]) +"hz with a screen draw time of "
+        my_str3 = my_str3 + str(results_summary[current_test][41]) + "ms. "
+        f.write(my_str3)
+        f.write("\n")
+        my_str3 = ""
+        my_str3 = my_str3 +"We can then calculate the input lag at the top and bottom of the screen as" + str(results_summary[current_test][38])
+        my_str3 = my_str3 + "ms and " + str(results_summary[current_test][39]) +"ms for Read 1 result and "
+        my_str3 = my_str3 + str(results_summary[current_test][40]) + "ms and " + str(results_summary[current_test][39]) + "ms for Read 2 result. "
+
+
+        v = range(0, 50, 1)
+        for p in v:
+            f.write(str(results_summary[0][p]))
+            f.write(" = ")
+            f.write(str(results_summary[current_test][p]))
+            f.write("\n")
+
+        f.write("\n")
+
+        f.close()
+
+        mode = 10
+
+    if mode == 10:
+
+        break
