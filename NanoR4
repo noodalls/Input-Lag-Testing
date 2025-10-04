@@ -12,6 +12,8 @@ uint8_t OPT2_history[1000];
 uint8_t OPT1_log[1000];
 uint8_t OPT2_log[1000];
 
+
+
 float OPT1_count=0;
 float OPT2_count=0;
 float OPT1_sum=0;
@@ -57,7 +59,7 @@ int TRIAL_MAX = 300;
 
 int read_time = 100;
 int REPORT_TIME = 300;
-int query_time = 120;
+int query_time = 100;
 int QUIT_TIME = 500;
 
 int greater_than = 1;
@@ -84,7 +86,7 @@ int CANCEL_read = 0;
 
 
 int mode = 0;
-int cursor_position = 1;
+int cursor_position = 0;
 int log_position = 0;
 
 int current_button = 0;
@@ -99,6 +101,7 @@ int OUTPUT_ON_TIME[] = {-1,100,-1,-1,-1,-1,-1,-1,-1,-1,100,101,100};
 int output_off_time[] = {0,200,0,0,0,0,0,0,0,0,50,50,200};
 int OUTPUT_BUTTONS[]={11,10,9,8,7,5,6,3,4,2,14,16,17};
 
+int external_trigger = 0;
 
 char serial_names[] = {'t','T','w','W','r','R','q','Q','o','O','+','-','A','B','C','D','E','F','G','H','I','J','K','L','M','a','b','c','d','e','f','g','h','i','j','k','l','m'};
 //int *pointers[] = {&a,&b,&c};
@@ -150,9 +153,17 @@ EEPROM_WRITE(5*i,*pointers[i]);
 }}
 
 void turn_off_buttons(){
-  for (int i = 0;i<10;i++){
+  if (cursor_position > 0){
+    
+    for (int i = 0;i<13;i++){
     if (output_off_time[i] >= 0){digitalWrite(OUTPUT_BUTTONS[i],HIGH);}
     if (output_off_time[i] < 0){digitalWrite(OUTPUT_BUTTONS[i],LOW);}
+  }}
+  if (cursor_position == 0){
+    for (int i = 0;i<13;i++){
+    digitalWrite(OUTPUT_BUTTONS[i],HIGH);}
+
+
   }
 }
 
@@ -164,7 +175,8 @@ void setColorBGR(int _blue, int _green, int _red){
 
 
 void default_display(){
-  display.clearDisplay();delay(10);display.display();
+  display.clearDisplay();//delay(20);
+  display.display();
   display.setCursor(0,0);
   display.setTextSize(1);
   if (cursor_position == 0){display.println("Reset");}
@@ -257,7 +269,7 @@ if (cursor_position ==5){
   if (cursor_position >6){display.setCursor(0,0);display.println(serial_names[cursor_position-7]);
   display.setCursor(0,56);display.print(*pointers[cursor_position-7]);}
 
-  display.display();delay(5);
+  display.display();//delay(20);
 }
 
 
@@ -383,12 +395,15 @@ void setup() {
 
 
 void loop() {
+  timea=micros();
   time1=millis();
   if ((time1)!=(time2)){
   elapsed_time = (time1-time3);
     
   OPT1_read = analogRead(OPT1)/8;
   OPT2_read = analogRead(OPT2)/8;
+
+  timeb=micros();
   
   current_button=0;
 
@@ -411,6 +426,17 @@ void loop() {
         if ((less_than == 0) && (greater_than == 0)){less_than = 1;greater_than = 1;}
         Serial.print(serial_names[i]);Serial.println(*pointers[i]);
         SAVE_ALL_EEPROM();}
+
+    }
+
+    if (abc == 'p'){external_trigger = Serial.parseInt();
+    if (external_trigger == 0){cursor_position = 0;}
+    if ((external_trigger == 1) && (trial_number < TRIAL_MAX)){cursor_position=1;time3=millis();elapsed_time = 0;reset_OPT_values();mode = 1;}
+    if ((external_trigger == 2) && (trial_number < TRIAL_MAX)){cursor_position=2;time3=millis();elapsed_time = 0;reset_OPT_values();mode = 1;}
+    if ((external_trigger == 3) && (trial_number < TRIAL_MAX)){cursor_position=3;time3=millis();elapsed_time = 0;reset_OPT_values();mode = 1;}
+    external_trigger = 0;
+
+    
 
     }
 
@@ -533,6 +559,8 @@ if (mode == i+7){manage_values(i);}
   //   if (button_held_for == 700){last_button = 0;Serial.println(button_held_for);}
   // if (button_held_for == 800){last_button = 0;Serial.println(button_held_for);}
   // if (button_held_for >900){last_button = 0;Serial.println(button_held_for);}
+  
 
+  //Serial.println(timeb-timea);
   time2=millis();}
   }
